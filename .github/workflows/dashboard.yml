@@ -1,0 +1,32 @@
+name: Dashboard (GitHub Pages)
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+permissions: { contents: read, pages: write, id-token: write }
+concurrency: { group: pages, cancel-in-progress: true }
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: { name: github-pages, url: "${{ steps.d.outputs.page_url }}" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Isi konfigurasi Firebase (dari Secrets)
+        run: |
+          printf "export const FIREBASE_CONFIG = { apiKey: '%s', projectId: '%s' };\n" "$FB_KEY" "$FB_PROJECT" > src/config.js
+        env:
+          FB_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FB_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
+      - run: npm install
+      - run: npm run build
+      - name: Siapkan folder Pages
+        run: |
+          mkdir site && cd www
+          cp dashboard.js dashboard.css icon.svg ../site/ && cp dashboard.html ../site/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: site }
+      - id: d
+        uses: actions/deploy-pages@v4
