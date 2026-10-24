@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function hasProfile() { return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function isAdmin() { return hasProfile() && profile().role == 'admin'; }
+    function viewAll() { return hasProfile() && (profile().role == 'admin' || profile().role == 'supervisi'); }
+    // penilai: hanya estate/PKS yang tercantum di profil
+    function mine(loc) { return hasProfile() && profile().role == 'user' && loc in profile().locs; }
+
+    // Profil dibuat/diubah admin lewat Firebase Console (console tidak terkena aturan ini).
+    match /users/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow write: if false;
+    }
+
+    // Daftar PT dan Estate/PKS: semua akun berprofil boleh baca, hanya admin boleh ubah.
+    match /master/{doc} {
+      allow read: if hasProfile();
+      allow write: if isAdmin();
+    }
+
+    match /inspections/{id} {
+      allow read: if viewAll() || mine(resource.data.loc);
+      allow create: if isAdmin() || mine(request.resource.data.loc);
+      allow update: if isAdmin() || (mine(resource.data.loc) && mine(request.resource.data.loc));
+      allow delete: if isAdmin() || mine(resource.data.loc);
+    }
+  }
+}

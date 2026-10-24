@@ -1,0 +1,7 @@
+// ISI DARI FIREBASE CONSOLE: Project settings > General > Your apps > Web app > firebaseConfig
+// Cukup dua nilai ini (apiKey dan projectId). Boleh dikosongkan; bisa juga diisi lewat
+// aplikasi: Pengaturan > Database (Firebase).
+export const FIREBASE_CONFIG = {
+  apiKey: '',
+  projectId: '',
+};

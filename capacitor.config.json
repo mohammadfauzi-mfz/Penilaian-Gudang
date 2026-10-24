@@ -1,0 +1,6 @@
+{
+  "appId": "id.fauzi.penilaiangudang",
+  "appName": "Penilaian Gudang",
+  "webDir": "www",
+  "server": { "androidScheme": "https" }
+}

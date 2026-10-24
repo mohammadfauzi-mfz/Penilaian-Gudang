@@ -1,0 +1,250 @@
+[
+ {
+  "id": 1,
+  "name": "Kondisi Lantai",
+  "short": "Lantai",
+  "rekap": "Kondisi Lantai",
+  "items": [
+   {
+    "id": "1.1",
+    "text": "Lantai dalam keadaan bersih/tidak berdebu"
+   },
+   {
+    "id": "1.2",
+    "text": "Lantai aman untuk dilalui orang/barang material (tidak licin/pecah)"
+   }
+  ]
+ },
+ {
+  "id": 2,
+  "name": "Kondisi Kantor gudang dan ruangan gudang",
+  "short": "Kantor gudang dan ruangan gudang",
+  "rekap": "Kondisi Kantor gudang dan ruangan Gudang",
+  "items": [
+   {
+    "id": "2.1",
+    "text": "Tembok bersih dari kotoran/bercak/jamur"
+   },
+   {
+    "id": "2.2",
+    "text": "Plafon/Langit-langit bersih dari kotoran dan tidak bocor"
+   },
+   {
+    "id": "2.3",
+    "text": "Tidak ada kabel berserakan"
+   },
+   {
+    "id": "2.4",
+    "text": "Penataan ruangan tertata dengan rapi (beraturan dan bersih)"
+   },
+   {
+    "id": "2.5",
+    "text": "Jarak antar rak sesuai"
+   },
+   {
+    "id": "2.6",
+    "text": "Rak sudah terdapat label/nomor rak"
+   },
+   {
+    "id": "2.7",
+    "text": "Penataan barang tertata dengan rapi/tidak bertumpuk/berserakan"
+   },
+   {
+    "id": "2.8",
+    "text": "Penataan barang sesuai dengan kelompok material"
+   },
+   {
+    "id": "2.9",
+    "text": "Penataan barang sesuai dengan nomor rak"
+   }
+  ]
+ },
+ {
+  "id": 3,
+  "name": "Kenyamanan dan Estetika Ruangan",
+  "short": "Kenyamanan dan Estetika Ruangan",
+  "rekap": "Kenyamanan dan Estetika Ruangan",
+  "items": [
+   {
+    "id": "3.1",
+    "text": "Sirkulasi udara berfungsi dengan baik"
+   },
+   {
+    "id": "3.2",
+    "text": "Tingkat cahaya sesuai untuk bekerja"
+   },
+   {
+    "id": "3.3",
+    "text": "Bebas asap rokok"
+   },
+   {
+    "id": "3.4",
+    "text": "Kenyama nan suhu ruangan"
+   }
+  ]
+ },
+ {
+  "id": 4,
+  "name": "Filling Dokumen",
+  "short": "Dokumen",
+  "rekap": "Filling Dokumen",
+  "items": [
+   {
+    "id": "4.1",
+    "text": "Dokumen diletakkan sesuai dengan tempatnya (BOX)"
+   },
+   {
+    "id": "4.2",
+    "text": "Tempat peletakannya aman (tidak basah dan bersih)"
+   },
+   {
+    "id": "4.3",
+    "text": "Penyimpanan dokumenn tidak berserakan/tertata dengan rapi"
+   },
+   {
+    "id": "4.4",
+    "text": "Dokumen Pengeluaran dan Penerimaan barang terdokumentasi dengan baik dan terdapat didalam bantex khusus"
+   },
+   {
+    "id": "4.5",
+    "text": "Waktu Posting Dokumen Penerimaan dan pengeluaran barang sudah sesuai dengan IK/SOP (H+0)"
+   }
+  ]
+ },
+ {
+  "id": 5,
+  "name": "Kerapian Alat tulis dan laci",
+  "short": "Alat tulis dan laci",
+  "rekap": "Kerapian Alat tulis dan laci",
+  "items": [
+   {
+    "id": "5.1",
+    "text": "Alat tulis diletakkan pada tempatnya"
+   },
+   {
+    "id": "5.2",
+    "text": "Laci tertata dengan rapi"
+   }
+  ]
+ },
+ {
+  "id": 6,
+  "name": "Alat keselamatan dan kebersihan",
+  "short": "Alat keselamatan dan kebersihan",
+  "rekap": "Alat keselamatan dan kebersihan",
+  "items": [
+   {
+    "id": "6.1",
+    "text": "Penempatan alat K3 sesuai dengan aturan"
+   },
+   {
+    "id": "6.2",
+    "text": "P3K lengkap dengan panduannya"
+   },
+   {
+    "id": "6.3",
+    "text": "Posisi dan letaknya mudah dijangkau"
+   },
+   {
+    "id": "6.4",
+    "text": "Terdapat Spill kit"
+   },
+   {
+    "id": "6.5",
+    "text": "Terdapat fasilitas/washer air untuk membasuh apabila terjadi kontak"
+   },
+   {
+    "id": "6.6",
+    "text": "Kebersihan lingkungan terjaga/terdapat tempat sampah di sekitar gudang"
+   }
+  ]
+ },
+ {
+  "id": 7,
+  "name": "Ketentuan penyimpanan barang",
+  "short": "Ketentuan penyimpanan barang",
+  "rekap": "Ketentuan penyimpanan barang",
+  "items": [
+   {
+    "id": "7.1",
+    "text": "Limbah B3 harus disimpan di gudang khusus limbah B3"
+   },
+   {
+    "id": "7.2",
+    "text": "Jumlah barang yang disimpan harus mempertimbangkan stok minimum, setiap rak menampung beberapa item barang dengan jumlah yang seimbang"
+   },
+   {
+    "id": "7.3",
+    "text": "Item barang dengan jenis atau kelompok yang berbeda harus diberi pembatas dan identitas yang jelas, agar mudah untuk dibedakan"
+   },
+   {
+    "id": "7.4",
+    "text": "Setiap item barang harus diberi identitas/kode material yang jelas"
+   },
+   {
+    "id": "7.5",
+    "text": "Tidak menggabungkan antara barang yang mudah rusak dengan barang berat dalam satu bin/kotak"
+   },
+   {
+    "id": "7.6",
+    "text": "Chemical/FOL, harus terdapat pembatas, terdapat exhaust dan ventilasi yang memadai"
+   },
+   {
+    "id": "7.7",
+    "text": "Chemical/FOL, rak harus dilapisi bahan anti bocor/ karpet plastic"
+   },
+   {
+    "id": "7.8",
+    "text": "Barang berbentuk kemasan karung harus diletakkan diatas pallet, jika terpaksa harus di luar Gudang, maka harus diberi pelindung"
+   },
+   {
+    "id": "7.9",
+    "text": "Barang-barang yang berat seperti motor, rantai dan ban dikelompokan atau dikumpulkan pada area tersendiri/terpisah dengan suku cadang"
+   },
+   {
+    "id": "7.10",
+    "text": "Barang-barang seperti paralon, besi profile, UNP, H-beam dan sejenisnya diletakkan di luar gudang dan diberi landasan dari balok kayu atau rak dan diatur sedemikian rupa"
+   },
+   {
+    "id": "7.11",
+    "text": "Barang-barang cetakan dan sejenisnya harus disimpan di tempat yang bersih/rak tersendiri"
+   },
+   {
+    "id": "7.12",
+    "text": "Barang yang berumur lebih tua atau kemasan terbuka (sudah diambil sebagian) diletakkan pada posisi lebih luar atau pada tumpukan atas, sehingga selalu terjaga sistem FIFO"
+   }
+  ]
+ },
+ {
+  "id": 8,
+  "name": "Ketentuan penyimpanan pupuk",
+  "short": "Ketentuan penyimpanan pupuk",
+  "rekap": "Ketentuan penyimpanan pupuk",
+  "items": [
+   {
+    "id": "8.1",
+    "text": "Pupuk ditumpuk sesuai dengan jenisnya, dilarang melakukan penumpukan pupuk dengan pupuk berlainan jenis"
+   },
+   {
+    "id": "8.2",
+    "text": "Pupuk ditumpuk diatas alas yang terbuat dari kayu/pallet, maksimal 20 lapis"
+   },
+   {
+    "id": "8.3",
+    "text": "Jarak selebar 80 cm diantara tumpukan pupuk untuk mempermudah penyimpanan dan pengeluaran serta pengawasan pupuk"
+   },
+   {
+    "id": "8.4",
+    "text": "Letak penyimpanan pupuk tidak terjangkau oleh anak-anak, hewan piaraan atau ternak serta jauh dari makanan, minuman, atau sumber api."
+   },
+   {
+    "id": "8.5",
+    "text": "Stock pupuk lama atau pupuk dengan karung yang rusak digunakan terlebih dahulu sesuai prinsip FIFO"
+   },
+   {
+    "id": "8.6",
+    "text": "Tata letak pupuk sesuai dengan layout"
+   }
+  ]
+ }
+]
