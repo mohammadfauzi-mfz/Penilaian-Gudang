@@ -9,7 +9,7 @@ const [www, out, photosDir] = process.argv.slice(2);
 fs.mkdirSync(out, { recursive: true });
 
 // ---- mock Firebase (meniru aturan: admin semua; supervisi baca semua; user hanya estate miliknya) ----
-const docs = new Map(); let master = null;
+const docs = new Map(); let master = null; const driveFiles = new Map();
 const S = (v) => ({ stringValue: v });
 const A = (arr) => ({ arrayValue: { values: arr.map(S) } });
 const users = {
@@ -32,12 +32,34 @@ const mock = http.createServer((req, res) => {
       if (!a || a[0] !== q.password) return bad('INVALID_LOGIN_CREDENTIALS');
       return j({ idToken: 'T-' + a[1], refreshToken: 'R-' + a[1], expiresIn: '3600', localId: a[1] });
     }
+    if (u.pathname === '/drive') { // tiruan Google Apps Script
+      if (req.method === 'GET') return j({ ok: true, msg: 'aktif' });
+      const q = JSON.parse(body); const mm = String(q.idToken || '').match(/^T-(.+)$/); const uid0 = mm && mm[1];
+      if (!uid0 || !roleOf(uid0)) return j({ ok: false, error: 'Token tidak valid' });
+      if (q.action === 'put') {
+        if (!(roleOf(uid0) === 'admin' || (roleOf(uid0) === 'user' && locsOf(uid0).includes(q.loc)))) return j({ ok: false, error: 'Tidak berhak' });
+        const id = 'F' + (driveFiles.size + 1); driveFiles.set(id, q.data); return j({ ok: true, id });
+      }
+      const d = docs.get(q.inspId); const ph = d && d.photos && d.photos.mapValue.fields;
+      if (!d || !(roleOf(uid0) !== 'user' || locsOf(uid0).includes(d.loc.stringValue)) || !ph || !ph[q.itemId] || ph[q.itemId].stringValue !== q.fileId) return j({ ok: false, error: 'Foto tidak terdaftar' });
+      return j({ ok: true, data: driveFiles.get(q.fileId) });
+    }
+    if (u.pathname === '/v1/accounts:signUp') {
+      const q = JSON.parse(body); if (accounts[q.email]) return bad('EMAIL_EXISTS');
+      if (q.password.length < 6) return bad('WEAK_PASSWORD');
+      const id = 'U' + (Object.keys(accounts).length + 10); accounts[q.email] = [q.password, id]; return j({ localId: id });
+    }
     if (u.pathname === '/v1/token') { const r = new URLSearchParams(body).get('refresh_token'); return j({ id_token: 'T-' + r.slice(2), refresh_token: r, expires_in: '3600' }); }
     const m0 = (req.headers.authorization || '').match(/^Bearer T-(.+)$/);
     if (!m0) return bad('unauth', 401);
     const uid = m0[1], role = roleOf(uid), locs = locsOf(uid);
     const deny = () => bad('Missing or insufficient permissions.', 403);
+    if (/\/documents\/users$/.test(u.pathname) && req.method === 'GET') {
+      if (role !== 'admin') return deny();
+      return j({ documents: Object.entries(users).map(([id, f]) => ({ name: `projects/p/databases/(default)/documents/users/${id}`, fields: f })) });
+    }
     const um = u.pathname.match(/\/documents\/users\/(.+)$/);
+    if (um && req.method === 'PATCH') { if (role !== 'admin') return deny(); users[decodeURIComponent(um[1])] = JSON.parse(body).fields; return j({ name: um[1] }); }
     if (um) { if (um[1] !== uid || !users[uid]) return users[um[1]] ? deny() : bad('NOT_FOUND', 404); return j({ name: 'users/' + uid, fields: users[uid] }); }
     if (/\/documents\/master\/config$/.test(u.pathname)) {
       if (!role) return deny();
@@ -196,6 +218,14 @@ for (let b = 0; b < await btns.count(); b++) {
 }
 for (const d of dls.slice(2)) { const f = path.join(out, 'JUL_' + d.suggestedFilename()); await d.saveAs(f); step('unduhan: ' + f + ' ' + fs.statSync(f).size); }
 
+// admin: aktifkan foto ke Google Drive (tiruan Apps Script), lalu sinkron
+await page.getByText('Atur', { exact: true }).click();
+await page.locator('input[placeholder^="https://script.google.com"]').fill('http://localhost:8097/drive');
+await page.getByRole('button', { name: 'Simpan dan uji' }).click(); await page.waitForTimeout(800);
+step('toast drive: ' + await page.locator('.toast').textContent().catch(() => ''));
+await page.getByRole('button', { name: /Sinkronkan/ }).click(); await page.waitForTimeout(2500);
+const ph = [...docs.values()].find((d) => d.loc.stringValue === 'BA1' && d.periode.stringValue === '2026-10');
+step('foto di Drive (tiruan): ' + driveFiles.size + ' file; doc BA1 mencatat ' + Object.keys(ph.photos.mapValue.fields || {}).length + ' foto');
 // admin: tambah PT & estate baru, ubah master, lalu cek Tentang aplikasi
 await page.getByText('Atur', { exact: true }).click();
 await page.getByRole('button', { name: /Tambah PT/ }).click();
@@ -207,6 +237,12 @@ await page.locator('.sheet select').selectOption('PXY');
 await page.locator('.sheet .btn.go').click(); await page.waitForTimeout(600);
 const mpts = JSON.stringify(master).includes('PT. Contoh Area Baru') && JSON.stringify(master).includes('XY1');
 step('master memuat PT & estate baru: ' + mpts);
+await page.getByRole('button', { name: /Tambah pengguna/ }).click();
+await page.locator('.sheet input').nth(0).fill('andi.mb'); await page.locator('.sheet input').nth(1).fill('Andi MB');
+await page.locator('.sheet input').nth(2).fill('rahasia1');
+await page.locator('.sheet label', { hasText: 'MB1' }).locator('input').check();
+await page.locator('.sheet .btn.go').click(); await page.waitForTimeout(700);
+step('pengguna baru di database: ' + JSON.stringify(Object.values(users).filter((x) => x.username && x.username.stringValue === 'andi.mb').map((x) => [x.role.stringValue, x.locs.arrayValue.values.map((v) => v.stringValue)])) + ' | daftar: ' + (await page.locator('.lrow', { hasText: 'Andi MB' }).count()));
 await page.getByText('Tentang aplikasi').click();
 const about = await page.locator('.sheet').innerText();
 step('tentang: ' + about.replace(/\n+/g, ' | '));
@@ -217,6 +253,7 @@ step('lokasi admin di beranda: ' + await page.locator('.loc').count() + ' (harus
 await page.screenshot({ path: path.join(out, '13-admin-home.png') });
 
 // ===== PENILAI (budi): hanya BA1 & MB1 =====
+// (foto BA1 dari HP lain harus ikut turun lewat Drive)
 async function loginAs(user, pw, vp = { width: 390, height: 844 }) {
   const c = await br.newContext({ viewport: vp, deviceScaleFactor: 2, isMobile: vp.width < 600, hasTouch: vp.width < 600 });
   const pg = await c.newPage();
@@ -237,6 +274,9 @@ const bNames = await b.pg.locator('.loc h3').allTextContents();
 step('PENILAI lokasi terlihat: ' + bNames.join(','));
 step('PENILAI grup PT: ' + (await b.pg.locator('.sec-h span').allTextContents()).join(' | '));
 await b.pg.screenshot({ path: path.join(out, '14-user-home.png') });
+await b.pg.locator('.loc', { hasText: 'BA1' }).click(); await b.pg.waitForSelector('.aspect'); await b.pg.waitForTimeout(2500);
+step('PENILAI buka form BA1: foto terunduh dari Drive = ' + await b.pg.locator('.thumb[style*="background-image"]').count());
+await b.pg.goBack(); await b.pg.waitForSelector('.loc');
 // riwayat terisi dari database (tarik), hanya BA1/MB1
 await b.pg.getByText('Riwayat', { exact: true }).click(); await b.pg.waitForSelector('.hrow');
 const hn = await b.pg.locator('.hrow b').allTextContents();
@@ -256,6 +296,10 @@ const deniedWrite = await b.pg.evaluate(async () => {
 });
 step('PENILAI tulis TL1 -> ' + deniedWrite[0] + ', list semua -> ' + deniedWrite[1] + ' (harus 403, 403)');
 await b.c.close();
+
+// pengguna yang dibuat admin dari aplikasi bisa login & hanya melihat MB1
+const an = await loginAs('andi.mb', 'rahasia1'); await doLogin(an); await an.pg.waitForSelector('.loc'); await an.pg.waitForTimeout(800);
+step('USER BARU (dibuat dari app) lokasi: ' + (await an.pg.locator('.loc h3').allTextContents()).join(',')); await an.c.close();
 
 // ===== SUPERVISI =====
 const sv = await loginAs('sup', 'pw3');

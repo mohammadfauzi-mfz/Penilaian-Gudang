@@ -49,6 +49,11 @@ export function putRemoteInspections(list) {
   for (const r of list) next[r.id] = r;
   commit({ inspections: next });
 }
+/** Ubah sebagian isi inspeksi tanpa menyentuh updatedAt (mis. daftar foto Drive). */
+export function patchInspection(id, patch) {
+  const cur = state.inspections[id]; if (!cur) return;
+  commit({ inspections: { ...state.inspections, [id]: { ...cur, ...patch } } });
+}
 export function markSynced(id, updatedAt) {
   const cur = state.inspections[id];
   if (!cur) return;

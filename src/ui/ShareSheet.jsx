@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Sheet, Icon, toast } from './common.jsx';
 import { getLoc, getPt, getState } from '../lib/store.js';
 import { getPhotosOf, blobToDataUrl } from '../lib/photos.js';
+import { ensurePhotos } from '../lib/drive.js';
 import { buildExcel } from '../export/exportExcel.js';
 import { buildPpt } from '../export/exportPpt.js';
 import { shareFiles } from '../lib/native.js';
@@ -33,6 +34,7 @@ export default function ShareSheet({ ids, periode, onClose }) {
         setBusy('Membuat PowerPoint (memuat foto)…');
         const withPhotos = [];
         for (const e of entries) {
+          await ensurePhotos(e.insp).catch(() => {});
           const raw = await getPhotosOf(e.insp.id);
           const photos = {};
           for (const [k, v] of Object.entries(raw)) photos[k] = { dataUrl: await blobToDataUrl(v.blob), w: v.w, h: v.h };

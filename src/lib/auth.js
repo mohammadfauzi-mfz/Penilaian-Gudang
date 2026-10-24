@@ -71,7 +71,7 @@ async function loadProfile(uid, token) {
   try {
     const d = await jfetch(`${docsUrl()}/users/${encodeURIComponent(uid)}`, { headers: { Authorization: `Bearer ${token}` } });
     const p = decDoc(d);
-    const role = ['admin', 'supervisi', 'user'].includes(p.role) ? p.role : 'none';
+    const role = p.active !== false && ['admin', 'supervisi', 'user'].includes(p.role) ? p.role : 'none';
     return { name: p.name || '', role, locs: Array.isArray(p.locs) ? p.locs : [] };
   } catch (e) {
     if (e.status === 404 || e.status === 403) return { name: '', role: 'none', locs: [] };
@@ -104,6 +104,19 @@ export async function refreshProfile() {
   const s = snap.session; if (!s || !navigator.onLine) return;
   try { const t = await getToken(); const profile = await loadProfile(s.uid, t); set({ profile }); }
   catch { /* offline / sementara gagal: tetap pakai profil tersimpan */ }
+}
+
+export async function changeOwnPassword(newPw) {
+  if (String(newPw).length < 6) throw new Error('Kata sandi minimal 6 karakter');
+  const c = getCfg();
+  try {
+    await jfetch(`${c.authBase}/v1/accounts:update?key=${encodeURIComponent(c.apiKey)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken: await getToken(), password: newPw, returnSecureToken: false }),
+    });
+  } catch (e) {
+    if (/CREDENTIAL_TOO_OLD|TOKEN_EXPIRED/.test(e.code || '')) throw new Error('Keluar lalu masuk ulang, kemudian coba lagi');
+    throw new Error(errText(e));
+  }
 }
 
 export function logout() {

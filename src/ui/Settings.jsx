@@ -1,18 +1,29 @@
 import { useState } from 'react';
 import { useStore, setSettings, importHistory } from '../lib/store.js';
 import { getCfg, isConfigured, fullSync, pendingCount, saveMaster } from '../lib/sync.js';
-import { useAuth, logout, ROLE_LABEL } from '../lib/auth.js';
+import { useAuth, logout, changeOwnPassword, ROLE_LABEL } from '../lib/auth.js';
 import HISTORY from '../data/history.json';
 import { Icon, Sheet, toast } from './common.jsx';
 import { openLink } from '../lib/native.js';
+import Users from './Users.jsx';
+import { ping } from '../lib/drive.js';
 
 export default function Settings() {
   const { settings, locations, pts, inspections } = useStore();
-  const { profile } = useAuth();
+  const { profile, session } = useAuth();
   const admin = !!profile && profile.role === 'admin';
   const cfg = getCfg();
   const [pt, setPt] = useState(null);
   const [about, setAbout] = useState(false);
+  const [durl, setDurl] = useState(settings.driveUrl || '');
+  async function saveDrive() {
+    const v = durl.trim();
+    setSettings({ driveUrl: v });
+    const r = await saveMaster(pts, locations);
+    if (!v) return toast('Foto ke Drive dimatikan');
+    try { await ping(); toast(r.sent || r.local ? 'Tersimpan. Skrip Drive aktif' : 'Skrip aktif, tetapi belum terkirim ke database'); }
+    catch (e) { toast('Tersimpan, tetapi skrip tidak menjawab: ' + e.message); }
+  }
   const [key, setKey] = useState(settings.firebase ? settings.firebase.apiKey : '');
   const [pid, setPid] = useState(settings.firebase ? settings.firebase.projectId : '');
   const [busy, setBusy] = useState('');
@@ -30,7 +41,7 @@ export default function Settings() {
   }
   function imp() {
     const n = importHistory();
-    toast(n ? `${n} penilaian Jan–Agu 2026 diimpor. Kirim ke database dengan Sinkronkan.` : 'Data historis sudah ada');
+    toast(n ? `${n} penilaian Jan–Sep 2026 diimpor. Kirim ke database dengan Sinkronkan.` : 'Data historis sudah ada');
   }
   const importable = HISTORY.filter((h) => !inspections[`${h.loc}_${h.periode}`]).length;
   const pend = pendingCount();
@@ -44,6 +55,7 @@ export default function Settings() {
             <h3>Akun</h3>
             <div><b>{profile.name || 'Pengguna'}</b> <span className="chip off">{ROLE_LABEL[profile.role]}</span></div>
             <p className="muted">{profile.role === 'user' ? `Area: ${(profile.locs || []).join(', ') || '–'}` : profile.role === 'supervisi' ? 'Dapat melihat semua PT dan estate/PKS (tanpa input).' : 'Akses penuh semua PT dan estate/PKS.'}</p>
+            <button className="btn alt" onClick={async () => { const np = window.prompt('Kata sandi baru (minimal 6 karakter):'); if (!np) return; try { await changeOwnPassword(np); toast('Kata sandi diubah'); } catch (e) { toast(e.message); } }}>Ubah kata sandi</button>
             <button className="btn alt" onClick={() => { const n = pendingCount(); if (window.confirm(n ? `${n} penilaian belum terkirim dan draf di HP ini akan hilang bila Keluar. Lanjutkan?` : 'Keluar dari akun? Data lokal di HP ini dibersihkan.')) logout(); }}>Keluar</button>
           </section>
         )}
@@ -53,6 +65,7 @@ export default function Settings() {
         </section>
 
         {admin && (<>
+        {!profile.local && <Users myUid={session && session.uid} />}
         <section className="card set">
           <h3>Database (Firebase)</h3>
           <p className="muted">Penilaian yang ditandai selesai dikirim ke Firebase Firestore agar muncul di dashboard tren.{baked ? ' Pengaturan bawaan aplikasi sedang dipakai.' : ''}</p>
@@ -67,8 +80,15 @@ export default function Settings() {
 
         <section className="card set">
           <h3>Data historis 2026</h3>
-          <p className="muted">Nilai Januari–Agustus 2026 dari file Excel monitoring ({HISTORY.length} penilaian, 10 lokasi) bisa dimasukkan sebagai riwayat dan data awal dashboard.</p>
+          <p className="muted">Nilai Januari–September 2026 dari file Excel monitoring ({HISTORY.length} penilaian, 10 lokasi) bisa dimasukkan sebagai riwayat dan data awal dashboard.</p>
           <button className="btn alt" onClick={imp} disabled={!importable}>{importable ? `Impor ${importable} penilaian dari Excel` : 'Sudah diimpor'}</button>
+        </section>
+
+        <section className="card set">
+          <h3>Foto ke Google Drive</h3>
+          <p className="muted">Tempel alamat Web app dari Google Apps Script (lihat README). Foto penilaian diunggah ke Drive Anda dan bisa dilihat semua HP sesuai area. Kosongkan untuk mematikan.</p>
+          <label className="f">Alamat Web app<input className="in" value={durl} onChange={(e) => setDurl(e.target.value)} placeholder="https://script.google.com/macros/s/…/exec" autoCapitalize="off" autoCorrect="off" spellCheck={false} /></label>
+          <button className="btn" onClick={saveDrive}>Simpan dan uji</button>
         </section>
 
         <section className="card" style={{ overflow: 'hidden' }}>

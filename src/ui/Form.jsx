@@ -3,6 +3,7 @@ import { useStore, getLoc, getPt, inspId, saveInspection, setSettings } from '..
 import { GRADES, GRADE, aspectsFor, computeScore, fmtAspect, fmtTotal, periodeLabel, scoreTone, todayISO } from '../lib/score.js';
 import { getPhotosOf, putPhoto, delPhoto, shrinkImage } from '../lib/photos.js';
 import { pickPhoto } from '../lib/native.js';
+import { ensurePhotos } from '../lib/drive.js';
 import { syncPending } from '../lib/sync.js';
 import { Icon, ScoreHex, Sheet, toast } from './common.jsx';
 
@@ -20,14 +21,14 @@ export default function Form({ locCode, periode, onClose }) {
   const aspects = useMemo(() => aspectsFor(loc), [loc]);
   const sc = computeScore(draft.answers, loc);
   const first = useRef(true), timer = useRef(null), latest = useRef(draft);
-  const snap = (d) => JSON.stringify([d.date, d.inspector, d.answers, d.notes, d.photoIds, d.status]);
+  const snap = (d) => JSON.stringify([d.date, d.inspector, d.answers, d.notes, d.photoIds, d.driveIds, d.status]);
   const saved = useRef(existingSnap());
   function existingSnap() { return inspections[id] ? snap({ photoIds: [], ...inspections[id] }) : ''; }
   latest.current = draft;
 
   useEffect(() => { // muat foto
     let alive = true; const urls = [];
-    getPhotosOf(id).then((m) => {
+    (inspections[id] ? ensurePhotos(inspections[id]) : Promise.resolve()).catch(() => {}).then(() => getPhotosOf(id)).then((m) => {
       if (!alive) return; const o = {};
       for (const [k, v] of Object.entries(m)) { const u = URL.createObjectURL(v.blob); urls.push(u); o[k] = u; }
       setPhotos(o);
@@ -58,14 +59,14 @@ export default function Form({ locCode, periode, onClose }) {
       const sm = await shrinkImage(raw);
       await putPhoto(id, itemId, sm);
       setPhotos((p) => { if (p[itemId]) URL.revokeObjectURL(p[itemId]); return { ...p, [itemId]: URL.createObjectURL(sm.blob) }; });
-      setDraft((d) => ({ ...d, photoIds: d.photoIds.includes(itemId) ? d.photoIds : [...d.photoIds, itemId] }));
+      setDraft((d) => { const { [itemId]: _x, ...dr } = d.driveIds || {}; return { ...d, driveIds: dr, photoIds: d.photoIds.includes(itemId) ? d.photoIds : [...d.photoIds, itemId] }; });
       setSheet(null);
     } catch (e) { toast('Foto gagal: ' + (e.message || e)); }
   }
   async function removePhoto(itemId) {
     await delPhoto(id, itemId);
     setPhotos((p) => { const { [itemId]: u, ...r } = p; if (u) URL.revokeObjectURL(u); return r; });
-    setDraft((d) => ({ ...d, photoIds: d.photoIds.filter((x) => x !== itemId) }));
+    setDraft((d) => { const { [itemId]: _x, ...dr } = d.driveIds || {}; return { ...d, driveIds: dr, photoIds: d.photoIds.filter((x) => x !== itemId) }; });
     setSheet(null);
   }
 

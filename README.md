@@ -19,7 +19,10 @@ Aplikasi inspeksi gudang: 8 aspek / 46 butir (SB=5, BA=4, S=3, BU=2) sesuai Exce
 4. **Dashboard web**: Settings > Pages > Source: *GitHub Actions*; jalankan workflow *Dashboard*. Alamatnya muncul di hasil workflow.
 5. Tanpa secrets pun bisa: isi apiKey/projectId di aplikasi (Atur > Database).
 
-## Akun, peran, dan area (dikelola admin lewat Firebase Console)
+## Akun, peran, dan area
+**Cara mudah:** login sebagai admin, lalu Pengaturan > Kelola pengguna > Tambah pengguna (nama pengguna, kata sandi awal, peran, area). Admin juga bisa mengubah peran/area dan menonaktifkan akun. Pengguna dapat mengganti kata sandinya sendiri (Pengaturan > Akun). Lupa kata sandi: reset lewat Firebase Console (Authentication > Users). **Admin pertama** tetap dibuat lewat Console seperti di bawah.
+
+**Cara manual lewat Firebase Console** (tetap bisa dipakai):
 Peran: **admin** (semua PT/estate + kelola PT & Estate/PKS di Pengaturan), **supervisi** (lihat semua, tanpa input),
 **user** (input dan lihat hanya estate/PKS miliknya).
 
@@ -33,6 +36,18 @@ Untuk setiap orang:
 4. **Admin pertama**: buat akun dan dokumen `users` dengan `role=admin`, lalu login di aplikasi. Daftar PT & Estate/PKS bawaan otomatis
    dikirim ke database saat admin pertama login; setelah itu perubahan dari Pengaturan dipakai semua HP.
 Ganti peran atau area: ubah dokumen `users` lalu minta pengguna menekan Sinkronkan (atau buka ulang aplikasi).
+
+## Foto ke Google Drive (Google Apps Script)
+Foto penilaian diunggah ke Drive Anda (folder `Penilaian Gudang - Foto/PT/Estate/Periode`), bukan ke Firebase.
+HP lain bisa melihatnya (sesuai area) dan memasukkannya ke PowerPoint.
+1. Buka script.google.com > **Proyek baru**. Tempel isi `drive/Code.gs` (ganti seluruh isi file).
+2. **Project Settings > Script properties > Add**: `API_KEY` = Web API key Firebase, `PROJECT_ID` = Project ID Firebase.
+3. **Deploy > New deployment > Web app**: *Execute as* = **Me**, *Who has access* = **Anyone**. Deploy, setujui izin Drive dan koneksi eksternal
+   (di layar peringatan: Advanced > Go to project). Salin **Web app URL** (berakhir `/exec`).
+4. Di aplikasi (login admin): Pengaturan > **Foto ke Google Drive** > tempel URL > **Simpan dan uji**. URL otomatis dipakai semua HP.
+5. Setelah mengubah kode skrip, buat *New version* pada deployment yang sama agar URL tidak berubah.
+Keamanan: skrip hanya menerima permintaan dengan token login Firebase yang valid, dan memeriksa peran/area lewat Firestore.
+Foto yang diganti atau dihapus di aplikasi tidak menghapus berkas lama di Drive (bisa dibersihkan manual).
 
 ## Uji lokal
 `npm install && npm test` (build dengan stub plugin + uji Chromium ujung-ke-ujung dengan Firebase tiruan).

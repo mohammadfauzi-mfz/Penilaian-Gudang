@@ -1,6 +1,8 @@
 // Sinkron ke Firebase Firestore lewat REST API. Akses dibatasi aturan server per peran/area.
-import { getState, getLoc, getPt, markSynced, setSettings, summarize, applyMaster, putRemoteInspections } from './store.js';
+import { getState, getLoc, getPt, markSynced, setSettings, summarize, applyMaster, putRemoteInspections, patchInspection } from './store.js';
 import { getCfg, isConfigured, jfetch, enc, decDoc, docsUrl } from './fb.js';
+import { driveOn, uploadPhoto } from './drive.js';
+import { getPhotosOf } from './photos.js';
 import { getToken, currentProfile, canInput, canSee, isAdmin, myLocs, refreshProfile } from './auth.js';
 
 export { getCfg, isConfigured, enc, getToken };
@@ -13,7 +15,7 @@ export function toRemote(insp) {
     loc: insp.loc, locName: loc ? loc.name : insp.loc, pt: loc ? loc.pt : '', ptName: pt ? pt.name : '',
     periode: insp.periode, date: insp.date || '', inspector: insp.inspector || '',
     total: s.total, count: s.count, n: s.n, aspects: s.aspects,
-    answers: insp.answers || {}, notes: insp.notes || {}, updatedAt: insp.updatedAt,
+    answers: insp.answers || {}, notes: insp.notes || {}, photos: insp.driveIds || {}, updatedAt: insp.updatedAt,
   };
 }
 
@@ -64,7 +66,7 @@ export async function pullRemote() {
     if (!canSee(r.loc) || !getLoc(r.loc)) continue;
     const l = cur[r.id];
     if (l && (l.syncedAt !== l.updatedAt || String(l.updatedAt) >= String(r.updatedAt))) continue; // draf/perubahan lokal menang
-    put.push({ id: r.id, loc: r.loc, periode: r.periode, date: r.date, inspector: r.inspector, answers: r.answers || {}, notes: r.notes || {}, status: 'final', updatedAt: r.updatedAt, syncedAt: r.updatedAt });
+    put.push({ id: r.id, loc: r.loc, periode: r.periode, date: r.date, inspector: r.inspector, answers: r.answers || {}, notes: r.notes || {}, driveIds: r.photos || {}, photoIds: Object.keys(r.photos || {}), status: 'final', updatedAt: r.updatedAt, syncedAt: r.updatedAt });
   }
   if (put.length) putRemoteInspections(put);
   return put.length;
@@ -73,7 +75,7 @@ export async function pullRemote() {
 // ---- Master PT & Estate/PKS (dokumen master/config) ----
 export async function pushMaster() {
   const { pts, locations } = getState();
-  const body = { fields: { pts: enc(pts), locs: enc(locations), updatedAt: enc(new Date().toISOString()) } };
+  const body = { fields: { pts: enc(pts), locs: enc(locations), driveUrl: enc(getState().settings.driveUrl || ''), updatedAt: enc(new Date().toISOString()) } };
   await jfetch(`${docsUrl()}/master/config`, { method: 'PATCH', headers: { ...(await auth()), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   setSettings({ masterDirty: false });
 }
@@ -83,6 +85,7 @@ export async function pullMaster() {
     if (getState().settings.masterDirty) return;
     const m = decDoc(d);
     if (Array.isArray(m.pts) && Array.isArray(m.locs) && m.pts.length) applyMaster(m.pts, m.locs);
+    if ((m.driveUrl || '') !== (getState().settings.driveUrl || '')) setSettings({ driveUrl: m.driveUrl || '' });
   } catch (e) {
     if (e.status === 404 && isAdmin()) await pushMaster(); // pertama kali: admin menaruh daftar bawaan
     else throw e;
@@ -96,7 +99,22 @@ export async function saveMaster(pts, locations) {
   try { await pushMaster(); return { sent: true }; } catch (e) { return { sent: false, error: e.message }; }
 }
 
-const pendingList = () => Object.values(getState().inspections).filter((i) => i.status === 'final' && i.syncedAt !== i.updatedAt && canInput(i.loc));
+const unsentPhotos = (i) => driveOn() && (i.photoIds || []).some((k) => !(i.driveIds || {})[k]);
+const pendingList = () => Object.values(getState().inspections).filter((i) => i.status === 'final' && canInput(i.loc) && (i.syncedAt !== i.updatedAt || unsentPhotos(i)));
+
+/** Unggah foto yang belum ada di Drive; id file dicatat di inspeksi. Mengembalikan jumlah foto terkirim. */
+async function sendPhotos(i) {
+  if (!driveOn()) return 0;
+  const loc = getLoc(i.loc), pt = getPt(loc && loc.pt);
+  const local = await getPhotosOf(i.id).catch(() => ({}));
+  const ids = { ...(i.driveIds || {}) }; let n = 0;
+  for (const k of i.photoIds || []) {
+    if (ids[k] || !local[k]) continue;
+    ids[k] = await uploadPhoto(i, loc, pt ? pt.name : '', k, local[k].blob); n++;
+    patchInspection(i.id, { driveIds: { ...ids } }); // simpan per foto agar tidak diulang bila terputus
+  }
+  return n;
+}
 export const pendingCount = () => pendingList().length;
 
 /** Kirim semua penilaian selesai yang belum terkirim (hanya estate yang boleh diinput). */
@@ -106,8 +124,14 @@ export async function syncPending() {
   let sent = 0, failed = 0, lastErr = '';
   if (isAdmin() && getState().settings.masterDirty) { try { await pushMaster(); } catch (e) { lastErr = e.message; } }
   for (const i of list) {
-    try { await upload(i); markSynced(i.id, i.updatedAt); sent++; }
-    catch (e) { failed++; lastErr = e.message; if (!navigator.onLine) break; }
+    try {
+      let photoErr = '';
+      try { await sendPhotos(i); } catch (e) { photoErr = e.message; lastErr = 'Foto: ' + e.message; }
+      const cur = getState().inspections[i.id] || i;
+      await upload(cur);
+      if (photoErr) { failed++; continue; } // nilai terkirim, foto dicoba lagi pada sinkron berikutnya
+      markSynced(i.id, i.updatedAt); sent++;
+    } catch (e) { failed++; lastErr = e.message; if (!navigator.onLine) break; }
   }
   if (sent) setSettings({ lastSyncAt: new Date().toISOString() });
   return { sent, failed, lastErr, pending: list.length };
