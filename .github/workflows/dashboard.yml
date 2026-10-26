@@ -15,7 +15,11 @@ jobs:
         with: { node-version: 20 }
       - name: Isi konfigurasi Firebase (dari Secrets)
         run: |
-          printf "export const FIREBASE_CONFIG = { apiKey: '%s', projectId: '%s' };\n" "$FB_KEY" "$FB_PROJECT" > src/config.js
+          if [ -n "$FB_KEY" ] && [ -n "$FB_PROJECT" ]; then
+            printf "export const FIREBASE_CONFIG = { apiKey: '%s', projectId: '%s' };\n" "$FB_KEY" "$FB_PROJECT" > src/config.js
+          else
+            echo "Secrets kosong: memakai src/config.js dari repo"
+          fi
         env:
           FB_KEY: ${{ secrets.FIREBASE_API_KEY }}
           FB_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
