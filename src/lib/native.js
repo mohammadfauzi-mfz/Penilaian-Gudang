@@ -63,5 +63,6 @@ export async function shareFiles(files, title) {
 }
 
 export async function openLink(url) {
-  window.open(url, '_blank');
+  // Di Android, navigasi ke URL luar dialihkan Capacitor ke browser/pengunduh sistem; WebView aplikasi tetap di tempat.
+  if (isNative()) window.location.href = url; else window.open(url, '_blank');
 }

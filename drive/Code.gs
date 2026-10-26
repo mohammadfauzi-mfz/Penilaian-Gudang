@@ -65,7 +65,7 @@ function root_() {
 
 function put_(q, uid) {
   var p = profile_(uid, q.idToken);
-  var ok = p.active && (p.role === 'admin' || (p.role === 'user' && p.locs.indexOf(q.loc) >= 0));
+  var ok = p.active && (p.role === 'admin' || p.role === 'supervisi' || (p.role === 'user' && p.locs.indexOf(q.loc) >= 0));
   if (!ok) throw new Error('Tidak berhak mengunggah foto untuk ' + q.loc);
   if (!q.data || q.data.length > 8 * 1024 * 1024) throw new Error('Data foto tidak valid atau terlalu besar');
   var dir = folder_(folder_(folder_(root_(), q.ptName || q.pt), q.locName || q.loc), q.periode);

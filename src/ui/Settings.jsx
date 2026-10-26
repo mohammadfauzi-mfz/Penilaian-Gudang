@@ -7,6 +7,7 @@ import { Icon, Sheet, toast } from './common.jsx';
 import { openLink } from '../lib/native.js';
 import Users from './Users.jsx';
 import { ping } from '../lib/drive.js';
+import { useUpdate, checkUpdate, updateSupported, BUILD } from '../lib/update.js';
 
 export default function Settings() {
   const { settings, locations, pts, inspections } = useStore();
@@ -15,6 +16,11 @@ export default function Settings() {
   const cfg = getCfg();
   const [pt, setPt] = useState(null);
   const [about, setAbout] = useState(false);
+  const { info: upd } = useUpdate();
+  async function cekUpdate() {
+    const r = await checkUpdate(true);
+    toast(r.unsupported ? 'Pembaruan otomatis hanya di aplikasi Android hasil build GitHub' : r.error ? `Gagal memeriksa: ${r.error}` : r.info ? `Tersedia build ${r.info.build}` : 'Sudah versi terbaru');
+  }
   const [durl, setDurl] = useState(settings.driveUrl || '');
   async function saveDrive() {
     const v = durl.trim();
@@ -54,7 +60,7 @@ export default function Settings() {
           <section className="card set">
             <h3>Akun</h3>
             <div><b>{profile.name || 'Pengguna'}</b> <span className="chip off">{ROLE_LABEL[profile.role]}</span></div>
-            <p className="muted">{profile.role === 'user' ? `Area: ${(profile.locs || []).join(', ') || '–'}` : profile.role === 'supervisi' ? 'Dapat melihat semua PT dan estate/PKS (tanpa input).' : 'Akses penuh semua PT dan estate/PKS.'}</p>
+            <p className="muted">{profile.role === 'user' || profile.role === 'reader' ? `${profile.role === 'reader' ? 'Hanya melihat. ' : ''}Area: ${(profile.locs || []).join(', ') || '–'}` : profile.role === 'supervisi' ? 'Dapat melihat dan menilai semua PT dan estate/PKS (tidak bisa menghapus atau mengelola).' : 'Akses penuh semua PT dan estate/PKS.'}</p>
             <button className="btn alt" onClick={async () => { const np = window.prompt('Kata sandi baru (minimal 6 karakter):'); if (!np) return; try { await changeOwnPassword(np); toast('Kata sandi diubah'); } catch (e) { toast(e.message); } }}>Ubah kata sandi</button>
             <button className="btn alt" onClick={() => { const n = pendingCount(); if (window.confirm(n ? `${n} penilaian belum terkirim dan draf di HP ini akan hilang bila Keluar. Lanjutkan?` : 'Keluar dari akun? Data lokal di HP ini dibersihkan.')) logout(); }}>Keluar</button>
           </section>
@@ -113,6 +119,13 @@ export default function Settings() {
           <div className="lrow"><span /><button className="btn sm" disabled={!pts.length} onClick={() => setEdit({ code: '', name: '', pt: pts[0] && pts[0].code, pupuk: true, active: true, isNew: true })}>{Icon.plus}Tambah estate/PKS</button></div>
         </section>
         </>)}
+
+        <section className="card set">
+          <h3>Pembaruan aplikasi</h3>
+          <p className="muted">Build terpasang: {BUILD || '–'}. Pembaruan diambil dari GitHub Releases repo aplikasi ini.</p>
+          {upd && <button className="btn go" onClick={() => openLink(upd.url)}>Unduh build {upd.build}</button>}
+          <button className="btn alt" disabled={!updateSupported()} onClick={cekUpdate}>Periksa pembaruan</button>
+        </section>
 
         <section className="card" style={{ overflow: 'hidden' }}>
           <button className="lrow" style={{ width: '100%', background: 'none', border: 0, textAlign: 'left', borderTop: 0 }} onClick={() => setAbout(true)}>

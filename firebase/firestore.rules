@@ -5,9 +5,12 @@ service cloud.firestore {
     function hasProfile() { return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('active', true) == true; }
     function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
     function isAdmin() { return hasProfile() && profile().role == 'admin'; }
+    function isSup() { return hasProfile() && profile().role == 'supervisi'; }
     function viewAll() { return hasProfile() && (profile().role == 'admin' || profile().role == 'supervisi'); }
     // penilai: hanya estate/PKS yang tercantum di profil
     function mine(loc) { return hasProfile() && profile().role == 'user' && loc in profile().locs; }
+    // reader: hanya membaca estate/PKS yang tercantum di profil
+    function seeMine(loc) { return hasProfile() && (profile().role == 'user' || profile().role == 'reader') && loc in profile().locs; }
 
     // Profil pengguna (peran, area). Dibuat/diubah admin dari Pengaturan aplikasi (atau Firebase Console).
     match /users/{uid} {
@@ -22,9 +25,9 @@ service cloud.firestore {
     }
 
     match /inspections/{id} {
-      allow read: if viewAll() || mine(resource.data.loc);
-      allow create: if isAdmin() || mine(request.resource.data.loc);
-      allow update: if isAdmin() || (mine(resource.data.loc) && mine(request.resource.data.loc));
+      allow read: if viewAll() || seeMine(resource.data.loc);
+      allow create: if isAdmin() || isSup() || mine(request.resource.data.loc);
+      allow update: if isAdmin() || isSup() || (mine(resource.data.loc) && mine(request.resource.data.loc));
       allow delete: if isAdmin() || mine(resource.data.loc);
     }
   }

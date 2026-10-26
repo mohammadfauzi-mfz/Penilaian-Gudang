@@ -3,7 +3,7 @@ import { useStore, getLoc, getPt, removeInspection } from '../lib/store.js';
 import { aspectsFor, computeScore, fmtAspect, fmtTotal, periodeLabel, scoreTone, GRADE } from '../lib/score.js';
 import { delPhotosOf } from '../lib/photos.js';
 import { removeRemote } from '../lib/sync.js';
-import { canSee, canInput } from '../lib/auth.js';
+import { canSee, canInput, canDelete } from '../lib/auth.js';
 import { Icon, ScoreHex, toast } from './common.jsx';
 
 export function History({ openDetail }) {
@@ -56,7 +56,7 @@ export function Detail({ id, onBack, edit, share, canEdit }) {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn go" onClick={() => share([id], i.periode)} disabled={sc.count === 0}>{Icon.share}Bagikan</button>
           {canInput(i.loc) && <button className="btn alt" onClick={() => edit(i.loc, i.periode)}>Ubah</button>}
-          {canInput(i.loc) && <button className="btn danger" onClick={del}>{Icon.trash}Hapus</button>}
+          {canDelete(i.loc) && <button className="btn danger" onClick={del}>{Icon.trash}Hapus</button>}
         </div>
         {aspectsFor(l).map((a) => {
           const s = sc.aspects[a.id], t = scoreTone(s.avg);

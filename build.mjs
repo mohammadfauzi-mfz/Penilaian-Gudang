@@ -25,7 +25,11 @@ await build({
   target: ['chrome90'],
   jsx: 'automatic',
   loader: { '.json': 'json' },
-  define: { 'process.env.NODE_ENV': '"production"' },
+  define: {
+    'process.env.NODE_ENV': '"production"',
+    __BUILD__: JSON.stringify(Number(process.env.BUILD_NUMBER || 0)),
+    __REPO__: JSON.stringify(process.env.GITHUB_REPOSITORY || ''),
+  },
   minify: !stubs,
   sourcemap: stubs,
   alias,

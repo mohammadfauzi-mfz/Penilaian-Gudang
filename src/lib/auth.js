@@ -14,7 +14,7 @@ const subs = new Set();
 const set = (p) => { snap = { ...snap, ...p }; if ('session' in p) wr(SK, snap.session); if ('profile' in p) wr(PK, snap.profile); subs.forEach((f) => f()); };
 const sub = (f) => { subs.add(f); return () => subs.delete(f); };
 
-export const ROLE_LABEL = { admin: 'Admin', supervisi: 'Supervisi', user: 'Penilai', none: 'Tanpa akses' };
+export const ROLE_LABEL = { admin: 'Admin', supervisi: 'Supervisi', user: 'Penilai', reader: 'Reader', none: 'Tanpa akses' };
 const LOCAL = { role: 'admin', name: 'Mode lokal', locs: [], local: true };
 
 /** Profil efektif. Bila database belum diatur, aplikasi berjalan lokal sebagai admin. */
@@ -36,9 +36,11 @@ export function useAuth() {
 
 export const isAdmin = () => { const p = currentProfile(); return !!p && p.role === 'admin'; };
 export const isViewAll = () => { const p = currentProfile(); return !!p && (p.role === 'admin' || p.role === 'supervisi'); };
-export function canSee(loc) { const p = currentProfile(); return !!p && (p.role === 'admin' || p.role === 'supervisi' || (p.role === 'user' && (p.locs || []).includes(loc))); }
-export function canInput(loc) { const p = currentProfile(); return !!p && (p.role === 'admin' || (p.role === 'user' && (p.locs || []).includes(loc))); }
-export const myLocs = () => { const p = currentProfile(); return p && p.role === 'user' ? p.locs || [] : null; };
+export function canSee(loc) { const p = currentProfile(); return !!p && (p.role === 'admin' || p.role === 'supervisi' || ((p.role === 'user' || p.role === 'reader') && (p.locs || []).includes(loc))); }
+export function canInput(loc) { const p = currentProfile(); return !!p && (p.role === 'admin' || p.role === 'supervisi' || (p.role === 'user' && (p.locs || []).includes(loc))); }
+/** Hapus penilaian: admin, atau penilai untuk estate miliknya (supervisi tidak). */
+export function canDelete(loc) { const p = currentProfile(); return !!p && (p.role === 'admin' || (p.role === 'user' && (p.locs || []).includes(loc))); }
+export const myLocs = () => { const p = currentProfile(); return p && (p.role === 'user' || p.role === 'reader') ? p.locs || [] : null; };
 
 function errText(e) {
   const c = e.code || e.message || '';
@@ -71,7 +73,7 @@ async function loadProfile(uid, token) {
   try {
     const d = await jfetch(`${docsUrl()}/users/${encodeURIComponent(uid)}`, { headers: { Authorization: `Bearer ${token}` } });
     const p = decDoc(d);
-    const role = p.active !== false && ['admin', 'supervisi', 'user'].includes(p.role) ? p.role : 'none';
+    const role = p.active !== false && ['admin', 'supervisi', 'user', 'reader'].includes(p.role) ? p.role : 'none';
     return { name: p.name || '', role, locs: Array.isArray(p.locs) ? p.locs : [] };
   } catch (e) {
     if (e.status === 404 || e.status === 403) return { name: '', role: 'none', locs: [] };

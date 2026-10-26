@@ -1,14 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useStore, inspId } from '../lib/store.js';
 import { computeScore, fmtTotal, periodeLabel, itemCount } from '../lib/score.js';
 import { pendingCount, isConfigured, fullSync } from '../lib/sync.js';
 import { canSee, canInput, useAuth } from '../lib/auth.js';
+import { useUpdate, checkUpdate } from '../lib/update.js';
+import { openLink } from '../lib/native.js';
 import { Icon, ScoreHex, toast } from './common.jsx';
 
 export default function Home({ periode, setPeriode, openForm, openDetail, share }) {
   const { locations, pts, inspections } = useStore();
   const [busy, setBusy] = useState(false);
   useAuth();
+  const { info: upd } = useUpdate();
+  useEffect(() => { checkUpdate(); }, []);
   const groups = useMemo(() => pts.map((p) => ({ pt: p, locs: locations.filter((l) => l.pt === p.code && l.active && canSee(l.code)) })).filter((g) => g.locs.length), [pts, locations]);
   const pend = pendingCount();
   async function sync() {
@@ -26,6 +30,14 @@ export default function Home({ periode, setPeriode, openForm, openDetail, share 
           <label className="f">Periode penilaian<input className="in" type="month" value={periode} onChange={(e) => e.target.value && setPeriode(e.target.value)} /></label>
           <span className="muted" style={{ alignSelf: 'end', paddingBottom: 12 }}>{periodeLabel(periode)}</span>
         </div>
+        {upd && (
+          <div className="card set" role="status" style={{ borderColor: 'var(--orange)' }}>
+            <b>Versi baru tersedia (build {upd.build})</b>
+            {upd.notes && <span className="muted" style={{ whiteSpace: 'pre-line' }}>{upd.notes}</span>}
+            <button className="btn go" onClick={() => openLink(upd.url)}>Perbarui</button>
+            <span className="muted">APK diunduh, lalu buka berkas dan tekan Pasang. Data di HP tetap aman.</span>
+          </div>
+        )}
         {pend > 0 && <div className="chip warn" style={{ justifySelf: 'start' }}>{pend} penilaian menunggu dikirim ke database</div>}
         {groups.map(({ pt, locs }) => {
           const done = locs.map((l) => inspections[inspId(l.code, periode)]).filter((i) => i && i.status === 'final');

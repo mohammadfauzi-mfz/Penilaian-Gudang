@@ -17,7 +17,7 @@ export async function listUsers() {
 }
 
 async function putProfile(uid, p) {
-  const fields = { name: p.name, username: p.username || '', role: p.role, locs: p.role === 'user' ? p.locs : [], active: p.active !== false };
+  const fields = { name: p.name, username: p.username || '', role: p.role, locs: p.role === 'user' || p.role === 'reader' ? p.locs : [], active: p.active !== false };
   await jfetch(`${docsUrl()}/users/${encodeURIComponent(uid)}`, {
     method: 'PATCH', headers: { Authorization: `Bearer ${await getToken()}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ fields: Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, enc(v)])) }),
@@ -29,7 +29,7 @@ export async function createUser({ username, name, password, role, locs }) {
   if (!validUsername(u)) throw new Error('Nama pengguna 3–30 karakter: huruf kecil, angka, titik, minus, garis bawah');
   if (!String(name || '').trim()) throw new Error('Nama wajib diisi');
   if (String(password || '').length < 6) throw new Error('Kata sandi minimal 6 karakter');
-  if (role === 'user' && !(locs || []).length) throw new Error('Pilih minimal satu estate/PKS untuk penilai');
+  if ((role === 'user' || role === 'reader') && !(locs || []).length) throw new Error('Pilih minimal satu estate/PKS untuk penilai/reader');
   const c = getCfg();
   let uid;
   try {

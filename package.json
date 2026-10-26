@@ -7,7 +7,7 @@
   "scripts": {
     "build": "node build.mjs",
     "build:test": "TEST_STUBS=1 node build.mjs",
-    "test": "TEST_STUBS=1 OUT_DIR=.tmp/www node build.mjs && node test/e2e.mjs .tmp/www .tmp/out test/photos"
+    "test": "TEST_STUBS=1 BUILD_NUMBER=3 GITHUB_REPOSITORY=acme/pg OUT_DIR=.tmp/www node build.mjs && node test/e2e.mjs .tmp/www .tmp/out test/photos"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.0",

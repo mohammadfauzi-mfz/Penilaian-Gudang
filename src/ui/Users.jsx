@@ -6,8 +6,9 @@ import { Icon, Sheet, toast } from './common.jsx';
 
 const ROLE_HELP = {
   admin: 'Akses penuh: semua PT/estate, kelola PT, estate, dan pengguna.',
-  supervisi: 'Hanya melihat semua PT dan estate/PKS (tidak bisa input).',
+  supervisi: 'Melihat dan menilai semua PT dan estate/PKS. Tidak bisa menghapus penilaian atau mengelola PT/pengguna.',
   user: 'Menginput dan melihat hanya estate/PKS yang dipilih.',
+  reader: 'Hanya melihat estate/PKS yang dipilih (tanpa input).',
 };
 
 export default function Users({ myUid }) {
@@ -28,7 +29,7 @@ export default function Users({ myUid }) {
         <div className="lrow" key={u.uid}>
           <div>
             <b>{u.name || u.username || u.uid.slice(0, 8)}</b> <span className="chip off">{ROLE_LABEL[u.role] || u.role}</span>{u.active === false && <span className="chip warn"> nonaktif</span>}
-            <div className="muted">{u.username ? `${u.username} · ` : ''}{u.role === 'user' ? (u.locs || []).join(', ') || 'tanpa area' : u.role === 'supervisi' ? 'semua area (lihat)' : 'semua area'}</div>
+            <div className="muted">{u.username ? `${u.username} · ` : ''}{u.role === 'user' || u.role === 'reader' ? (u.locs || []).join(', ') || 'tanpa area' : u.role === 'supervisi' ? 'semua area (lihat + nilai)' : 'semua area'}</div>
           </div>
           <button className="btn alt sm" onClick={() => setEdit({ ...u, locs: u.locs || [] })}>Ubah</button>
         </div>
@@ -50,7 +51,7 @@ function UserEdit({ u, me, onClose, onSaved }) {
     try {
       if (f.isNew) await createUser(f);
       else {
-        if (f.role === 'user' && !f.locs.length) throw new Error('Pilih minimal satu estate/PKS untuk penilai');
+        if ((f.role === 'user' || f.role === 'reader') && !f.locs.length) throw new Error('Pilih minimal satu estate/PKS');
         if (!String(f.name || '').trim()) throw new Error('Nama wajib diisi');
         await updateUser(f.uid, { ...f, name: f.name.trim() });
       }
@@ -65,11 +66,11 @@ function UserEdit({ u, me, onClose, onSaved }) {
       {f.isNew && <label className="f">Kata sandi awal (min. 6 karakter)<input className="in" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} autoCapitalize="off" autoCorrect="off" spellCheck={false} /></label>}
       <label className="f">Peran
         <select className="in" value={f.role} disabled={self} onChange={(e) => setF({ ...f, role: e.target.value })}>
-          {['user', 'supervisi', 'admin'].map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+          {['user', 'reader', 'supervisi', 'admin'].map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
         </select>
       </label>
       <p className="muted" style={{ margin: 0 }}>{ROLE_HELP[f.role]}</p>
-      {f.role === 'user' && (
+      {(f.role === 'user' || f.role === 'reader') && (
         <div className="f">Area (estate/PKS)
           {pts.map((p) => { const ls = locations.filter((l) => l.pt === p.code); return ls.length ? (
             <div key={p.code} style={{ marginTop: 6 }}><div className="muted">{p.name}</div>

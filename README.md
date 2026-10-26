@@ -23,8 +23,8 @@ Aplikasi inspeksi gudang: 8 aspek / 46 butir (SB=5, BA=4, S=3, BU=2) sesuai Exce
 **Cara mudah:** login sebagai admin, lalu Pengaturan > Kelola pengguna > Tambah pengguna (nama pengguna, kata sandi awal, peran, area). Admin juga bisa mengubah peran/area dan menonaktifkan akun. Pengguna dapat mengganti kata sandinya sendiri (Pengaturan > Akun). Lupa kata sandi: reset lewat Firebase Console (Authentication > Users). **Admin pertama** tetap dibuat lewat Console seperti di bawah.
 
 **Cara manual lewat Firebase Console** (tetap bisa dipakai):
-Peran: **admin** (semua PT/estate + kelola PT & Estate/PKS di Pengaturan), **supervisi** (lihat semua, tanpa input),
-**user** (input dan lihat hanya estate/PKS miliknya).
+Peran: **admin** (semua PT/estate + kelola PT & Estate/PKS di Pengaturan), **supervisi** (lihat dan menilai semua estate/PKS; tidak bisa menghapus atau mengelola),
+**user** (input dan lihat hanya estate/PKS miliknya), **reader** (hanya lihat estate/PKS yang dipilih, tanpa input).
 
 Untuk setiap orang:
 1. Authentication > Users > Add user. Email: `<nama>@pg.local` (di aplikasi cukup ketik `<nama>`), isi kata sandi. Salin **User UID**-nya.
@@ -48,6 +48,14 @@ HP lain bisa melihatnya (sesuai area) dan memasukkannya ke PowerPoint.
 5. Setelah mengubah kode skrip, buat *New version* pada deployment yang sama agar URL tidak berubah.
 Keamanan: skrip hanya menerima permintaan dengan token login Firebase yang valid, dan memeriksa peran/area lewat Firestore.
 Foto yang diganti atau dihapus di aplikasi tidak menghapus berkas lama di Drive (bisa dibersihkan manual).
+
+## Pembaruan otomatis dari GitHub
+Setiap push ke `main` menjalankan workflow *Build APK*, yang membuat **GitHub Release** `build-N` berisi `PenilaianGudang.apk`.
+Aplikasi memeriksa Release terbaru saat dibuka (maks. tiap 6 jam; manual di Pengaturan > Pembaruan aplikasi). Bila ada build lebih baru,
+muncul banner **Perbarui** di Beranda: APK diunduh, lalu pengguna membuka berkas dan menekan **Pasang** (Android tidak mengizinkan pasang senyap;
+HP mungkin meminta izin "Pasang aplikasi tidak dikenal" untuk browser, sekali saja). Data di HP tetap ada karena ditimpa dengan kunci yang sama.
+Syarat: repo GitHub **publik** (untuk repo privat, APK tidak bisa diunduh tanpa login). Pengaturan > Actions > General > Workflow permissions
+harus *Read and write* (workflow sudah meminta `contents: write`).
 
 ## Uji lokal
 `npm install && npm test` (build dengan stub plugin + uji Chromium ujung-ke-ujung dengan Firebase tiruan).

@@ -16,8 +16,9 @@ const users = {
   U1: { name: S('Admin Pusat'), role: S('admin'), locs: A([]) },
   U2: { name: S('Budi BAS'), role: S('user'), locs: A(['BA1', 'MB1']) },
   U3: { name: S('Pak Supervisi'), role: S('supervisi'), locs: A([]) },
+  U5: { name: S('Rina Reader'), role: S('reader'), locs: A(['MB1']) },
 };
-const accounts = { 'admin@pg.local': ['pw1', 'U1'], 'budi@pg.local': ['pw2', 'U2'], 'sup@pg.local': ['pw3', 'U3'], 'baru@pg.local': ['pw4', 'U4'] };
+const accounts = { 'admin@pg.local': ['pw1', 'U1'], 'budi@pg.local': ['pw2', 'U2'], 'sup@pg.local': ['pw3', 'U3'], 'baru@pg.local': ['pw4', 'U4'], 'rd@pg.local': ['pw5', 'U5'] };
 const roleOf = (uid) => (users[uid] ? users[uid].role.stringValue : null);
 const locsOf = (uid) => (users[uid] ? users[uid].locs.arrayValue.values.map((v) => v.stringValue) : []);
 const mock = http.createServer((req, res) => {
@@ -32,12 +33,13 @@ const mock = http.createServer((req, res) => {
       if (!a || a[0] !== q.password) return bad('INVALID_LOGIN_CREDENTIALS');
       return j({ idToken: 'T-' + a[1], refreshToken: 'R-' + a[1], expiresIn: '3600', localId: a[1] });
     }
+    if (u.pathname === '/repos/acme/pg/releases/latest') return j({ tag_name: 'build-5', name: 'Build 5', body: 'Perbaikan tampilan', assets: [{ name: 'PenilaianGudang.apk', browser_download_url: 'http://localhost:8097/dl.apk' }] });
     if (u.pathname === '/drive') { // tiruan Google Apps Script
       if (req.method === 'GET') return j({ ok: true, msg: 'aktif' });
       const q = JSON.parse(body); const mm = String(q.idToken || '').match(/^T-(.+)$/); const uid0 = mm && mm[1];
       if (!uid0 || !roleOf(uid0)) return j({ ok: false, error: 'Token tidak valid' });
       if (q.action === 'put') {
-        if (!(roleOf(uid0) === 'admin' || (roleOf(uid0) === 'user' && locsOf(uid0).includes(q.loc)))) return j({ ok: false, error: 'Tidak berhak' });
+        if (!(roleOf(uid0) === 'admin' || roleOf(uid0) === 'supervisi' || (roleOf(uid0) === 'user' && locsOf(uid0).includes(q.loc)))) return j({ ok: false, error: 'Tidak berhak' });
         const id = 'F' + (driveFiles.size + 1); driveFiles.set(id, q.data); return j({ ok: true, id });
       }
       const d = docs.get(q.inspId); const ph = d && d.photos && d.photos.mapValue.fields;
@@ -69,7 +71,7 @@ const mock = http.createServer((req, res) => {
     }
     if (u.pathname.endsWith('/documents:runQuery')) {
       const f = JSON.parse(body).structuredQuery.where.fieldFilter; const want = f.value.stringValue;
-      if (role === 'user' && !locs.includes(want)) return deny();
+      if ((role === 'user' || role === 'reader') && !locs.includes(want)) return deny();
       if (!role) return deny();
       const out = [...docs.entries()].filter(([, v]) => v.loc.stringValue === want).map(([id, v]) => ({ document: { name: `projects/p/databases/(default)/documents/inspections/${id}`, fields: v } }));
       return j(out.length ? out : [{ readTime: 'x' }]);
@@ -77,16 +79,16 @@ const mock = http.createServer((req, res) => {
     const m = u.pathname.match(/\/documents\/inspections(?:\/(.+))?$/);
     if (!m || !role) return role ? bad('nf', 404) : deny();
     if (req.method === 'GET') {
-      if (role === 'user') return deny();
+      if (role === 'user' || role === 'reader') return deny();
       return j({ documents: [...docs.entries()].map(([id, f]) => ({ name: `projects/p/databases/(default)/documents/inspections/${id}`, fields: f })) });
     }
     const id = decodeURIComponent(m[1] || '');
     if (req.method === 'PATCH') {
       const fields = JSON.parse(body).fields;
-      if (role === 'supervisi' || (role === 'user' && !locs.includes(fields.loc.stringValue))) return deny();
+      if (role === 'reader' || (role === 'user' && !locs.includes(fields.loc.stringValue))) return deny();
       docs.set(id, fields); return j({ name: id });
     }
-    if (req.method === 'DELETE') { const d = docs.get(id); if (role === 'supervisi' || (role === 'user' && d && !locs.includes(d.loc.stringValue))) return deny(); docs.delete(id); return j({}); }
+    if (req.method === 'DELETE') { const d = docs.get(id); if (role === 'supervisi' || role === 'reader' || (role === 'user' && d && !locs.includes(d.loc.stringValue))) return deny(); docs.delete(id); return j({}); }
     j({}, 405);
   });
 }).listen(8097);
@@ -109,6 +111,7 @@ page.on('dialog', (d) => d.accept());
 const step = (s) => console.log('•', s);
 const shot = (n) => page.screenshot({ path: path.join(out, n + '.png') });
 
+await page.addInitScript(() => { localStorage.setItem('pg.ghApi', 'http://localhost:8097'); localStorage.setItem('pg.forceUpdateCheck', '1'); });
 await page.addInitScript((c) => { if (!localStorage.getItem('pg.settings')) localStorage.setItem('pg.settings', JSON.stringify({ firebase: c, inspector: 'Budi Penilai' })); }, cfg);
 await page.goto('http://localhost:8098/');
 await page.waitForSelector('form');
@@ -119,6 +122,11 @@ await page.locator('input[type=password]').fill('pw1');
 await page.getByRole('button', { name: 'Masuk', exact: true }).click();
 await page.waitForSelector('.loc');
 await page.waitForTimeout(500);
+await page.waitForSelector('text=Versi baru tersedia', { timeout: 5000 });
+step('BANNER update: ' + (await page.locator('[role=status]', { hasText: 'Versi baru' }).innerText()).replace(/\n+/g, ' | '));
+await page.screenshot({ path: path.join(out, '18-update.png') });
+const [popup] = await Promise.all([page.waitForEvent('popup', { timeout: 4000 }).catch(() => null), page.getByRole('button', { name: 'Perbarui', exact: true }).click()]);
+step('klik Perbarui membuka: ' + (popup ? popup.url() : 'TIDAK ADA')); if (popup) await popup.close();
 step('master di database setelah admin login: ' + (master ? 'ada' : 'TIDAK ADA'));
 await shot('01-home');
 step('home ok, lokasi: ' + (await page.locator('.loc').count()));
@@ -304,12 +312,41 @@ step('USER BARU (dibuat dari app) lokasi: ' + (await an.pg.locator('.loc h3').al
 // ===== SUPERVISI =====
 const sv = await loginAs('sup', 'pw3');
 await doLogin(sv); await sv.pg.waitForSelector('.loc'); await sv.pg.waitForTimeout(1200);
-step('SUPERVISI jumlah lokasi: ' + await sv.pg.locator('.loc').count() + ', tombol aktif utk input: ' + await sv.pg.locator('.loc:not([disabled]) .chip.off').count());
-await sv.pg.locator('input[type=month]').fill('2026-07'); await sv.pg.waitForTimeout(300);
-await sv.pg.screenshot({ path: path.join(out, '17-sup-home.png') });
-await sv.pg.locator('.loc:not([disabled])').first().click(); await sv.pg.waitForTimeout(300);
-step('SUPERVISI buka detail, tombol Ubah: ' + await sv.pg.getByRole('button', { name: 'Ubah', exact: true }).count());
+step('SUPERVISI jumlah lokasi: ' + await sv.pg.locator('.loc').count() + ', bisa dinilai (tombol aktif): ' + await sv.pg.locator('.loc:not([disabled])').count());
+await sv.pg.locator('.loc', { hasText: 'MSE' }).click(); await sv.pg.waitForSelector('.aspect');
+await sv.pg.locator('.item').first().locator('.g[data-k="SB"]').click();
+step('SUPERVISI buka form MSE (estate lain): tombol selesai=' + await sv.pg.getByRole('button', { name: 'Tandai selesai' }).count());
+await sv.pg.getByRole('button', { name: 'Simpan draf' }).click(); await sv.pg.waitForTimeout(500);
+await sv.pg.getByText('Riwayat', { exact: true }).click(); await sv.pg.waitForSelector('.hrow');
+await sv.pg.locator('.hrow').first().click(); await sv.pg.waitForTimeout(300);
+step('SUPERVISI detail: Ubah=' + await sv.pg.getByRole('button', { name: 'Ubah', exact: true }).count() + ', Hapus=' + await sv.pg.getByRole('button', { name: /Hapus/ }).count() + ' (Hapus harus 0)');
+const svw = await sv.pg.evaluate(async () => {
+  const t = JSON.parse(localStorage.getItem('pg.session')); const r = await fetch('http://localhost:8097/v1/token?key=K', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'grant_type=refresh_token&refresh_token=' + t.refreshToken }); const tk = (await r.json()).id_token;
+  const base = 'http://localhost:8097/v1/projects/p/databases/(default)/documents/';
+  const w = await fetch(base + 'inspections/TL1_zz', { method: 'PATCH', headers: { Authorization: 'Bearer ' + tk, 'Content-Type': 'application/json' }, body: JSON.stringify({ fields: { loc: { stringValue: 'TL1' } } }) });
+  const d = await fetch(base + 'inspections/TL1_zz', { method: 'DELETE', headers: { Authorization: 'Bearer ' + tk } });
+  return [w.status, d.status];
+});
+step('SUPERVISI tulis TL1 -> ' + svw[0] + ' (harus 200), hapus -> ' + svw[1] + ' (harus 403)');
 await sv.c.close();
+
+// ===== READER: hanya lihat MB1 =====
+const rd = await loginAs('rd', 'pw5'); await doLogin(rd); await rd.pg.waitForSelector('.loc'); await rd.pg.waitForTimeout(1200);
+step('READER lokasi: ' + (await rd.pg.locator('.loc h3').allTextContents()).join(',') + ' | tombol input aktif: ' + await rd.pg.locator('.loc:not([disabled]) .chip.off').count());
+await rd.pg.locator('input[type=month]').fill('2026-07'); await rd.pg.waitForTimeout(300);
+await rd.pg.locator('.loc:not([disabled])').first().click(); await rd.pg.waitForTimeout(300);
+step('READER detail MB1: tombol Ubah=' + await rd.pg.getByRole('button', { name: 'Ubah', exact: true }).count() + ', Hapus=' + await rd.pg.getByRole('button', { name: /Hapus/ }).count());
+await rd.pg.goBack(); await rd.pg.getByText('Tren', { exact: true }).click(); await rd.pg.waitForSelector('table.hm');
+step('READER baris tren: ' + (await rd.pg.locator('table.hm tbody tr').allTextContents()).map((t) => t.slice(0, 4)).join('/'));
+const rdw = await rd.pg.evaluate(async () => {
+  const t = JSON.parse(localStorage.getItem('pg.session')); const r = await fetch('http://localhost:8097/v1/token?key=K', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'grant_type=refresh_token&refresh_token=' + t.refreshToken }); const tk = (await r.json()).id_token;
+  const h = { Authorization: 'Bearer ' + tk, 'Content-Type': 'application/json' }; const base = 'http://localhost:8097/v1/projects/p/databases/(default)/documents/';
+  const w = await fetch(base + 'inspections/MB1_x', { method: 'PATCH', headers: h, body: JSON.stringify({ fields: { loc: { stringValue: 'MB1' } } }) });
+  const q = await fetch(base.slice(0, -1) + ':runQuery', { method: 'POST', headers: h, body: JSON.stringify({ structuredQuery: { where: { fieldFilter: { value: { stringValue: 'TL1' } } } } }) });
+  return [w.status, q.status];
+});
+step('READER tulis MB1 -> ' + rdw[0] + ', baca TL1 -> ' + rdw[1] + ' (harus 403, 403)');
+await rd.c.close();
 
 // ===== AKUN TANPA PROFIL =====
 const nb = await loginAs('baru', 'pw4'); await doLogin(nb); await nb.pg.waitForSelector('text=belum diberi akses', { timeout: 8000 });
