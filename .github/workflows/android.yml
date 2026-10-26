@@ -3,6 +3,8 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -22,12 +24,23 @@ jobs:
           FB_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
       - run: npm install
       - run: npm run build
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
       - run: npx cap add android
       - run: node tools/patch-android.mjs
       - run: npx cap sync android
       - name: Build APK (release, ditandatangani)
         run: cd android && chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+      - name: Siapkan APK
+        run: cp android/app/build/outputs/apk/release/*.apk PenilaianGudang.apk
       - uses: actions/upload-artifact@v4
         with:
           name: PenilaianGudang-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          path: PenilaianGudang.apk
+      - name: Terbitkan Release (dipakai pembaruan otomatis di aplikasi)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Build ${{ github.run_number }}
+          body: Pembaruan Penilaian Gudang (build ${{ github.run_number }}).
+          files: PenilaianGudang.apk
