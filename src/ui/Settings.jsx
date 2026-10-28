@@ -6,6 +6,7 @@ import HISTORY from '../data/history.json';
 import { Icon, Sheet, toast } from './common.jsx';
 import { openLink } from '../lib/native.js';
 import Users from './Users.jsx';
+import UpdateButton from './UpdateButton.jsx';
 import { ping } from '../lib/drive.js';
 import { useUpdate, checkUpdate, updateSupported, BUILD } from '../lib/update.js';
 
@@ -123,7 +124,7 @@ export default function Settings() {
         <section className="card set">
           <h3>Pembaruan aplikasi</h3>
           <p className="muted">Build terpasang: {BUILD || '–'}. Pembaruan diambil dari GitHub Releases repo aplikasi ini.</p>
-          {upd && <button className="btn go" onClick={() => openLink(upd.url)}>Unduh build {upd.build}</button>}
+          {upd && <UpdateButton info={upd} label={`Perbarui ke build ${upd.build}`} />}
           <button className="btn alt" disabled={!updateSupported()} onClick={cekUpdate}>Periksa pembaruan</button>
         </section>
 
