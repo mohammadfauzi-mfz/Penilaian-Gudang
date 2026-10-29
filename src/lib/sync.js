@@ -3,6 +3,7 @@ import { getState, getLoc, getPt, markSynced, setSettings, summarize, applyMaste
 import { getCfg, isConfigured, jfetch, enc, decDoc, docsUrl } from './fb.js';
 import { driveOn, uploadPhoto } from './drive.js';
 import { getPhotosOf } from './photos.js';
+import { begin, add, tick, end } from './progress.js';
 import { getToken, currentProfile, canInput, canSee, isAdmin, myLocs, refreshProfile } from './auth.js';
 
 export { getCfg, isConfigured, enc, getToken };
@@ -99,6 +100,7 @@ export async function saveMaster(pts, locations) {
   try { await pushMaster(); return { sent: true }; } catch (e) { return { sent: false, error: e.message }; }
 }
 
+const unsentCount = (i) => (driveOn() ? (i.photoIds || []).filter((k) => !(i.driveIds || {})[k]).length : 0);
 const unsentPhotos = (i) => driveOn() && (i.photoIds || []).some((k) => !(i.driveIds || {})[k]);
 const pendingList = () => Object.values(getState().inspections).filter((i) => i.status === 'final' && canInput(i.loc) && (i.syncedAt !== i.updatedAt || unsentPhotos(i)));
 
@@ -109,8 +111,9 @@ async function sendPhotos(i) {
   const local = await getPhotosOf(i.id).catch(() => ({}));
   const ids = { ...(i.driveIds || {}) }; let n = 0;
   for (const k of i.photoIds || []) {
-    if (ids[k] || !local[k]) continue;
-    ids[k] = await uploadPhoto(i, loc, pt ? pt.name : '', k, local[k].blob); n++;
+    if (ids[k]) continue;
+    if (!local[k]) { tick(); continue; }
+    ids[k] = await uploadPhoto(i, loc, pt ? pt.name : '', k, local[k].blob); n++; tick();
     patchInspection(i.id, { driveIds: { ...ids } }); // simpan per foto agar tidak diulang bila terputus
   }
   return n;
@@ -122,7 +125,12 @@ export async function syncPending() {
   if (!isConfigured()) return { sent: 0, failed: 0, skipped: true };
   const list = pendingList();
   let sent = 0, failed = 0, lastErr = '';
+  if (!list.length && !(isAdmin() && getState().settings.masterDirty)) return { sent, failed, lastErr, pending: 0 };
+  begin('up', 'Mengirim data');
+  try {
+  add(list.length + list.reduce((a, i) => a + unsentCount(i), 0) + 1, 'up', 'Mengirim data');
   if (isAdmin() && getState().settings.masterDirty) { try { await pushMaster(); } catch (e) { lastErr = e.message; } }
+  tick();
   for (const i of list) {
     try {
       let photoErr = '';
@@ -130,9 +138,10 @@ export async function syncPending() {
       const cur = getState().inspections[i.id] || i;
       await upload(cur);
       if (photoErr) { failed++; continue; } // nilai terkirim, foto dicoba lagi pada sinkron berikutnya
-      markSynced(i.id, i.updatedAt); sent++;
+      markSynced(i.id, i.updatedAt); sent++; tick();
     } catch (e) { failed++; lastErr = e.message; if (!navigator.onLine) break; }
   }
+  } finally { end(!!lastErr || failed > 0); }
   if (sent) setSettings({ lastSyncAt: new Date().toISOString() });
   return { sent, failed, lastErr, pending: list.length };
 }
@@ -143,9 +152,14 @@ export async function fullSync() {
   await refreshProfile();
   if (!currentProfile() || currentProfile().role === 'none') return { sent: 0, failed: 0, pulled: 0, denied: true };
   let err = '';
-  try { await pullMaster(); } catch (e) { err = e.message; }
-  const r = await syncPending();
-  let pulled = 0;
-  try { pulled = await pullRemote(); } catch (e) { err = err || e.message; }
-  return { ...r, pulled, lastErr: r.lastErr || err };
+  begin('down', 'Mengambil data'); add(2, 'down', 'Mengambil data');
+  try {
+    try { await pullMaster(); } catch (e) { err = e.message; }
+    tick();
+    const r = await syncPending();
+    let pulled = 0;
+    try { pulled = await pullRemote(); } catch (e) { err = err || e.message; }
+    tick('Mengambil data', 'down');
+    return { ...r, pulled, lastErr: r.lastErr || err };
+  } finally { end(!!err); }
 }

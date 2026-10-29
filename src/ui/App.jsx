@@ -5,7 +5,7 @@ import { History, Detail } from './History.jsx';
 import Tren from './Tren.jsx';
 import Settings from './Settings.jsx';
 import ShareSheet from './ShareSheet.jsx';
-import { Icon, ToastHost } from './common.jsx';
+import { Icon, ToastHost, SyncBar } from './common.jsx';
 import { currentPeriode } from '../lib/score.js';
 import { fullSync } from '../lib/sync.js';
 import { useAuth, canInput } from '../lib/auth.js';
@@ -32,7 +32,7 @@ export default function App() {
   useEffect(() => { if (mode !== 'in' && mode !== 'local') return; const f = () => fullSync().catch(() => {}); f(); window.addEventListener('online', f); return () => window.removeEventListener('online', f); }, [mode]);
 
   const share = (ids, p) => setShareReq({ ids, periode: p });
-  if (mode === 'login') return <><Login /><ToastHost /></>;
+  if (mode === 'login') return <><Login /><ToastHost /></>; // tanpa SyncBar: belum ada data
   if (mode === 'denied') return <><Denied /><ToastHost /></>;
 
   let body;
@@ -49,5 +49,5 @@ export default function App() {
       </nav>
     </div>
   );
-  return <>{body}{shareReq && <ShareSheet ids={shareReq.ids} periode={shareReq.periode} onClose={() => setShareReq(null)} />}<ToastHost /></>;
+  return <><SyncBar />{body}{shareReq && <ShareSheet ids={shareReq.ids} periode={shareReq.periode} onClose={() => setShareReq(null)} />}<ToastHost /></>;
 }

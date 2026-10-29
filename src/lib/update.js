@@ -1,8 +1,7 @@
 // Pembaruan dari GitHub Releases: bandingkan nomor build aplikasi dengan rilis terbaru repo.
 // Android tidak mengizinkan pemasangan senyap, jadi tombol "Perbarui" mengunduh APK lalu pengguna menekan Pasang.
 import { useSyncExternalStore } from 'react';
-import { registerPlugin } from '@capacitor/core';
-import { isNative, openLink } from './native.js';
+import { isNative } from './native.js';
 
 /* global __BUILD__, __REPO__ */
 export const BUILD = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 0;
@@ -35,24 +34,4 @@ export async function checkUpdate(force = false) {
     set({ at: Date.now(), info });
     return { info };
   } catch (e) { return { error: e.message }; }
-}
-
-// Plugin native (dibuat saat build oleh tools/patch-android.mjs): unduh APK di dalam aplikasi lalu buka pemasang Android.
-const ApkUpdater = registerPlugin('ApkUpdater');
-
-/** Unduh + pasang pembaruan. Mengembalikan {ok} | {needPermission} | {error}. onProgress({percent}) dipanggil saat mengunduh. */
-export async function installUpdate(info, onProgress) {
-  if (!isNative()) { openLink(info.url); return { ok: true }; }
-  let h = null;
-  try {
-    const { allowed } = await ApkUpdater.canInstall();
-    if (!allowed) { await ApkUpdater.openInstallSettings(); return { needPermission: true }; }
-    h = await ApkUpdater.addListener('progress', (e) => { if (onProgress) onProgress(e); });
-    await ApkUpdater.downloadAndInstall({ url: info.url });
-    return { ok: true };
-  } catch (e) {
-    const msg = String((e && e.message) || e);
-    if (/not implemented|unimplemented/i.test(msg)) { openLink(info.url); return { ok: true }; } // APK lama belum punya plugin
-    return { error: msg };
-  } finally { if (h) h.remove(); }
 }

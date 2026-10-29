@@ -1,6 +1,7 @@
 // Foto -> Google Drive lewat Google Apps Script (drive/Code.gs). Alamat skrip disimpan admin di master/config.
 import { getState } from './store.js';
 import { getToken } from './auth.js';
+import { begin, add, tick, end } from './progress.js';
 import { getPhotosOf, putPhoto, blobToDataUrl } from './photos.js';
 
 export const driveUrl = () => (getState().settings.driveUrl || '').trim();
@@ -31,16 +32,21 @@ async function b64ToBlob(b64) { const bin = atob(b64); const u = new Uint8Array(
 export async function ensurePhotos(insp) {
   const ids = insp && insp.driveIds; if (!ids || !driveOn() || !navigator.onLine) return 0;
   const have = await getPhotosOf(insp.id).catch(() => ({}));
-  let n = 0;
-  for (const [itemId, fileId] of Object.entries(ids)) {
-    if (have[itemId]) continue;
-    try {
-      const j = await call({ action: 'get', inspId: insp.id, itemId, fileId });
-      const blob = await b64ToBlob(j.data);
-      const img = await new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = URL.createObjectURL(blob); });
-      await putPhoto(insp.id, itemId, { blob, w: img ? img.naturalWidth : 0, h: img ? img.naturalHeight : 0 });
-      n++;
-    } catch { /* lanjut ke foto berikut */ }
-  }
+  const need = Object.entries(ids).filter(([itemId]) => !have[itemId]);
+  if (!need.length) return 0;
+  let n = 0, bad = false;
+  begin('down', 'Mengunduh foto'); add(need.length, 'down', 'Mengunduh foto');
+  try {
+    for (const [itemId, fileId] of need) {
+      try {
+        const j = await call({ action: 'get', inspId: insp.id, itemId, fileId });
+        const blob = await b64ToBlob(j.data);
+        const img = await new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = URL.createObjectURL(blob); });
+        await putPhoto(insp.id, itemId, { blob, w: img ? img.naturalWidth : 0, h: img ? img.naturalHeight : 0 });
+        n++;
+      } catch { bad = true; /* lanjut ke foto berikut */ }
+      tick();
+    }
+  } finally { end(bad); }
   return n;
 }

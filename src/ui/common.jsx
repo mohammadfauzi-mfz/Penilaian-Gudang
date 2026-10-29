@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { scoreTone, fmtTotal } from '../lib/score.js';
+import { useProgress } from '../lib/progress.js';
 
 const P = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
 export const Icon = {
@@ -26,6 +27,19 @@ export function ScoreHex({ v, big, count, n }) {
 
 let toastSet = null;
 export function toast(msg) { if (toastSet) toastSet(msg); }
+export function SyncBar() {
+  const p = useProgress();
+  if (!p.show) return null;
+  const pct = p.total ? Math.min(100, Math.round((p.done / p.total) * 100)) : 0;
+  const txt = `${p.kind === 'up' ? '↑' : '↓'} ${p.label}${p.total > 1 ? ` ${Math.min(p.done, p.total)}/${p.total}` : ''}`;
+  return (
+    <div className={`syncbar ${p.kind} ${p.err ? 'err' : ''}`} role="progressbar" aria-label={p.label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+      <i style={{ width: `${p.total ? pct : 35}%` }} className={p.total ? '' : 'ind'} />
+      <span>{txt}</span>
+    </div>
+  );
+}
+
 export function ToastHost() {
   const [m, setM] = useState('');
   useEffect(() => { toastSet = (x) => { setM(x); clearTimeout(ToastHost.t); ToastHost.t = setTimeout(() => setM(''), 2600); }; return () => { toastSet = null; }; }, []);

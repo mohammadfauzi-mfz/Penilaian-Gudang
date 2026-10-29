@@ -137,8 +137,10 @@ await page.getByRole('button', { name: /Impor \d+ penilaian/ }).click();
 await page.waitForTimeout(300);
 await shot('02-settings');
 step('impor ok: ' + (await page.locator('.toast').textContent()));
+await page.evaluate(() => { window.__bars = []; new MutationObserver(() => { const b = document.querySelector('.syncbar'); if (b) window.__bars.push(b.getAttribute('aria-valuenow') + '|' + b.className + '|' + b.textContent); }).observe(document.body, { subtree: true, childList: true, attributes: true }); });
 await page.getByRole('button', { name: /Sinkronkan/ }).click();
 await page.waitForFunction(() => !document.querySelector('.toast') || /Terkirim|Gagal|sudah/.test(document.querySelector('.toast').textContent), null, { timeout: 15000 });
+{ const bars = await page.evaluate(() => window.__bars); console.log('syncbar samples:', bars.length, bars.slice(0, 2), bars.slice(-1)); if (!bars.length) throw new Error('SyncBar tidak muncul saat sinkron'); }
 await page.waitForTimeout(500);
 step('sinkron: ' + (await page.locator('.toast').textContent().catch(() => '')) + ' | mock docs=' + docs.size);
 

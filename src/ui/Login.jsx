@@ -31,7 +31,7 @@ export function Login() {
   );
 }
 
-function CfgSheet({ onClose }) {
+export function CfgSheet({ onClose }) {
   useStore();
   const c = getCfg();
   const [k, setK] = useState(c.apiKey); const [pid, setPid] = useState(c.projectId);

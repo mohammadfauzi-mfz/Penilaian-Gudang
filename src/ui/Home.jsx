@@ -4,7 +4,7 @@ import { computeScore, fmtTotal, periodeLabel, itemCount } from '../lib/score.js
 import { pendingCount, isConfigured, fullSync } from '../lib/sync.js';
 import { canSee, canInput, useAuth } from '../lib/auth.js';
 import { useUpdate, checkUpdate } from '../lib/update.js';
-import UpdateButton from './UpdateButton.jsx';
+import { openLink } from '../lib/native.js';
 import { Icon, ScoreHex, toast } from './common.jsx';
 
 export default function Home({ periode, setPeriode, openForm, openDetail, share }) {
@@ -34,8 +34,8 @@ export default function Home({ periode, setPeriode, openForm, openDetail, share 
           <div className="card set" role="status" style={{ borderColor: 'var(--orange)' }}>
             <b>Versi baru tersedia (build {upd.build})</b>
             {upd.notes && <span className="muted" style={{ whiteSpace: 'pre-line' }}>{upd.notes}</span>}
-            <UpdateButton info={upd} label="Perbarui" />
-            <span className="muted">Aplikasi mengunduh pembaruan, lalu tekan Pasang. Data di HP tetap aman.</span>
+            <button className="btn go" onClick={() => openLink(upd.url)}>Perbarui</button>
+            <span className="muted">APK diunduh, lalu buka berkas dan tekan Pasang. Data di HP tetap aman.</span>
           </div>
         )}
         {pend > 0 && <div className="chip warn" style={{ justifySelf: 'start' }}>{pend} penilaian menunggu dikirim ke database</div>}
