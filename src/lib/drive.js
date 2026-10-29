@@ -37,16 +37,20 @@ export async function ensurePhotos(insp) {
   let n = 0, bad = false;
   begin('down', 'Mengunduh foto'); add(need.length, 'down', 'Mengunduh foto');
   try {
-    for (const [itemId, fileId] of need) {
-      try {
-        const j = await call({ action: 'get', inspId: insp.id, itemId, fileId });
-        const blob = await b64ToBlob(j.data);
-        const img = await new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = URL.createObjectURL(blob); });
-        await putPhoto(insp.id, itemId, { blob, w: img ? img.naturalWidth : 0, h: img ? img.naturalHeight : 0 });
-        n++;
-      } catch { bad = true; /* lanjut ke foto berikut */ }
-      tick();
-    }
+    const one = async ([itemId, fileId]) => {
+      for (let t = 0; t < 2; t++) { // satu kali coba ulang bila Apps Script lambat/gagal
+        try {
+          const j = await call({ action: 'get', inspId: insp.id, itemId, fileId });
+          const blob = await b64ToBlob(j.data);
+          const img = await new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = URL.createObjectURL(blob); });
+          await putPhoto(insp.id, itemId, { blob, w: img ? img.naturalWidth : 0, h: img ? img.naturalHeight : 0 });
+          n++; tick(); return;
+        } catch { /* coba lagi */ }
+      }
+      bad = true; tick();
+    };
+    const q = [...need];
+    await Promise.all([0, 1, 2].map(async () => { while (q.length) await one(q.shift()); })); // 3 unduhan paralel
   } finally { end(bad); }
   return n;
 }

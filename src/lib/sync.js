@@ -1,7 +1,7 @@
 // Sinkron ke Firebase Firestore lewat REST API. Akses dibatasi aturan server per peran/area.
 import { getState, getLoc, getPt, markSynced, setSettings, summarize, applyMaster, putRemoteInspections, patchInspection } from './store.js';
 import { getCfg, isConfigured, jfetch, enc, decDoc, docsUrl } from './fb.js';
-import { driveOn, uploadPhoto } from './drive.js';
+import { driveOn, uploadPhoto, ensurePhotos } from './drive.js';
 import { getPhotosOf } from './photos.js';
 import { begin, add, tick, end } from './progress.js';
 import { getToken, currentProfile, canInput, canSee, isAdmin, myLocs, refreshProfile } from './auth.js';
@@ -66,6 +66,11 @@ export async function pullRemote() {
   for (const r of remote) {
     if (!canSee(r.loc) || !getLoc(r.loc)) continue;
     const l = cur[r.id];
+    if (l && l.syncedAt === l.updatedAt && String(l.updatedAt) >= String(r.updatedAt)) { // sama dengan database: ambil daftar foto baru (mis. diunggah dari HP lain)
+      const rp = r.photos || {}, lp = l.driveIds || {};
+      if (Object.keys(rp).some((k) => lp[k] !== rp[k])) patchInspection(l.id, { driveIds: { ...lp, ...rp }, photoIds: [...new Set([...(l.photoIds || []), ...Object.keys(rp)])] });
+      continue;
+    }
     if (l && (l.syncedAt !== l.updatedAt || String(l.updatedAt) >= String(r.updatedAt))) continue; // draf/perubahan lokal menang
     put.push({ id: r.id, loc: r.loc, periode: r.periode, date: r.date, inspector: r.inspector, answers: r.answers || {}, notes: r.notes || {}, driveIds: r.photos || {}, photoIds: Object.keys(r.photos || {}), status: 'final', updatedAt: r.updatedAt, syncedAt: r.updatedAt });
   }
@@ -146,6 +151,16 @@ export async function syncPending() {
   return { sent, failed, lastErr, pending: list.length };
 }
 
+/** Unduh foto yang belum ada di HP untuk 2 periode terbaru (periode lama diunduh saat penilaian dibuka). */
+export async function prefetchPhotos() {
+  if (!driveOn() || !navigator.onLine) return 0;
+  const all = Object.values(getState().inspections).filter((i) => i.driveIds && Object.keys(i.driveIds).length && canSee(i.loc));
+  const keep = [...new Set(all.map((i) => i.periode))].sort().reverse().slice(0, 2);
+  let n = 0;
+  for (const i of all.filter((x) => keep.includes(x.periode))) n += await ensurePhotos(i).catch(() => 0);
+  return n;
+}
+
 /** Sinkron penuh: profil -> master -> kirim -> tarik. */
 export async function fullSync() {
   if (!isConfigured()) return { sent: 0, failed: 0, skipped: true, pulled: 0 };
@@ -160,6 +175,7 @@ export async function fullSync() {
     let pulled = 0;
     try { pulled = await pullRemote(); } catch (e) { err = err || e.message; }
     tick('Mengambil data', 'down');
+    try { await prefetchPhotos(); } catch (e) { err = err || e.message; }
     return { ...r, pulled, lastErr: r.lastErr || err };
   } finally { end(!!err); }
 }
