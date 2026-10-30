@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { useStore, getLoc, getPt, removeInspection } from '../lib/store.js';
+import { useStore, getLoc, getPt, removeInspection, patchInspection } from '../lib/store.js';
 import { aspectsFor, computeScore, fmtAspect, fmtTotal, periodeLabel, scoreTone, GRADE } from '../lib/score.js';
 import { delPhotosOf } from '../lib/photos.js';
-import { removeRemote } from '../lib/sync.js';
+import { removeRemote, syncPending, isConfigured } from '../lib/sync.js';
 import { canSee, canInput, canDelete } from '../lib/auth.js';
 import { Icon, ScoreHex, toast } from './common.jsx';
 
@@ -44,6 +44,11 @@ export function Detail({ id, onBack, edit, share, canEdit }) {
     try { await removeRemote(id); } catch (e) { toast('Data lokal dihapus; hapus di database gagal: ' + e.message); }
     await delPhotosOf(id); removeInspection(id); onBack();
   }
+  async function resend() { // kirim ulang isi lokal ke database (mis. dokumen terhapus di database)
+    patchInspection(id, { syncedAt: '' });
+    const r = await syncPending();
+    toast(r.failed ? `Gagal kirim: ${r.lastErr || 'periksa koneksi'}` : r.sent ? 'Terkirim ulang ke database' : 'Tidak ada yang dikirim');
+  }
   return (
     <div className="shell">
       <header className="topbar"><div className="row"><button className="iconbtn" onClick={onBack} aria-label="Kembali">{Icon.back}</button>
@@ -56,6 +61,7 @@ export function Detail({ id, onBack, edit, share, canEdit }) {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn go" onClick={() => share([id], i.periode)} disabled={sc.count === 0}>{Icon.share}Bagikan</button>
           {canInput(i.loc) && <button className="btn alt" onClick={() => edit(i.loc, i.periode)}>Ubah</button>}
+          {canInput(i.loc) && i.status === 'final' && sc.count > 0 && isConfigured() && <button className="btn alt" onClick={resend}>{Icon.sync}Kirim ulang</button>}
           {canDelete(i.loc) && <button className="btn danger" onClick={del}>{Icon.trash}Hapus</button>}
         </div>
         {aspectsFor(l).map((a) => {
