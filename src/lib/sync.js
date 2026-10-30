@@ -66,12 +66,13 @@ export async function pullRemote() {
   for (const r of remote) {
     if (!canSee(r.loc) || !getLoc(r.loc)) continue;
     const l = cur[r.id];
-    if (l && l.syncedAt === l.updatedAt && String(l.updatedAt) >= String(r.updatedAt)) { // sama dengan database: ambil daftar foto baru (mis. diunggah dari HP lain)
+    if (l && l.syncedAt !== l.updatedAt) continue; // draf/perubahan lokal yang belum terkirim menang
+    if (l && l.updatedAt === r.updatedAt) { // isi sama: hanya ambil daftar foto baru (mis. diunggah dari HP lain)
       const rp = r.photos || {}, lp = l.driveIds || {};
       if (Object.keys(rp).some((k) => lp[k] !== rp[k])) patchInspection(l.id, { driveIds: { ...lp, ...rp }, photoIds: [...new Set([...(l.photoIds || []), ...Object.keys(rp)])] });
       continue;
     }
-    if (l && (l.syncedAt !== l.updatedAt || String(l.updatedAt) >= String(r.updatedAt))) continue; // draf/perubahan lokal menang
+    // salinan lokal bersih tetapi beda dengan database: database yang benar (diubah orang lain)
     put.push({ id: r.id, loc: r.loc, periode: r.periode, date: r.date, inspector: r.inspector, answers: r.answers || {}, notes: r.notes || {}, driveIds: r.photos || {}, photoIds: Object.keys(r.photos || {}), status: 'final', updatedAt: r.updatedAt, syncedAt: r.updatedAt });
   }
   if (put.length) putRemoteInspections(put);
@@ -107,7 +108,7 @@ export async function saveMaster(pts, locations) {
 
 const unsentCount = (i) => (driveOn() ? (i.photoIds || []).filter((k) => !(i.driveIds || {})[k]).length : 0);
 const unsentPhotos = (i) => driveOn() && (i.photoIds || []).some((k) => !(i.driveIds || {})[k]);
-const pendingList = () => Object.values(getState().inspections).filter((i) => i.status === 'final' && canInput(i.loc) && (i.syncedAt !== i.updatedAt || unsentPhotos(i)));
+const pendingList = () => Object.values(getState().inspections).filter((i) => i.status === 'final' && canInput(i.loc) && Object.keys(i.answers || {}).length > 0 && (i.syncedAt !== i.updatedAt || unsentPhotos(i)));
 
 /** Unggah foto yang belum ada di Drive; id file dicatat di inspeksi. Mengembalikan jumlah foto terkirim. */
 async function sendPhotos(i) {

@@ -72,6 +72,7 @@ export default function Form({ locCode, periode, onClose }) {
 
   function close() { flush(); onClose(); }
   async function finish() {
+    if (!sc.count) { toast('Belum ada butir yang dinilai. Isi minimal satu butir.'); return; }
     const missing = sc.n - sc.count;
     if (missing && !window.confirm(`${missing} butir belum dinilai. Tetap tandai selesai?`)) return;
     clearTimeout(timer.current);
